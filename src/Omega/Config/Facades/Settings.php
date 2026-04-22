@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Settings extends AbstractFacade {
 
-	protected static function getFacadeAccessor() {
+	public static function getFacadeAccessor() {
 		return 'settings';
 	}
 }

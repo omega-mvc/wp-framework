@@ -18,7 +18,7 @@ class AdminManager extends AbstractFacade {
 	 *
 	 * @return string
 	 */
-	protected static function getFacadeAccessor() {
+	public static function getFacadeAccessor() {
 		return 'admin.manager';
 	}
 }

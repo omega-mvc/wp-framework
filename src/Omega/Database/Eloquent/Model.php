@@ -4,7 +4,6 @@ namespace Omega\Database\Eloquent;
 
 use Omega\Application\ApplicationInstance;
 use Omega\Collection\Collection;
-use Omega\Database\Eloquent\CastsAttributesInterface;
 use Omega\Database\Database;
 use Omega\Database\Eloquent\Casts\Attribute;
 use Omega\Database\Eloquent\Relations\BelongsTo;

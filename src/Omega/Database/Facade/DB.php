@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class DB extends AbstractFacade {
 
-	protected static function getFacadeAccessor() {
+	public static function getFacadeAccessor() {
 		return 'database';
 	}
 }

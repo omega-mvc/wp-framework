@@ -2,8 +2,6 @@
 
 namespace Omega\Database\Eloquent;
 
-use Omega\Database\Eloquent\Model;
-
 interface CastsAttributesInterface {
 	/**
 	 * Transform the attribute from the underlying model values.

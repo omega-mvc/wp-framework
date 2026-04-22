@@ -2,9 +2,6 @@
 
 namespace Omega\Facades;
 
-use Omega\Omega;
-use Omega\Support\Container;
-
 defined( 'ABSPATH' ) || exit;
 
 abstract class Facade {
@@ -33,7 +30,7 @@ abstract class Facade {
 			return static::$resolvedInstance[ $name ];
 		}
 
-		return static::$resolvedInstance[ $name ] = Omega::app( $name );
+		return static::$resolvedInstance[ $name ] = app( $name );
 	}
 
 	public static function clearResolvedInstance( $name ) {

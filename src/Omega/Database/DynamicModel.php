@@ -3,7 +3,6 @@
 namespace Omega\Database;
 
 use Omega\Database\Eloquent\Model;
-use Omega\Database\Eloquent\QueryBuilder;
 
 class DynamicModel extends Model {
 	protected $primaryKey = 'id';

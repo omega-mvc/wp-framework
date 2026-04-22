@@ -2,11 +2,8 @@
 
 namespace Omega\Database\Eloquent;
 
-use Omega\Omega;
 use Omega\Contracts\Database\Eloquent\CastsAttributes;
 use Omega\Database\Database;
-use Omega\Database\Eloquent\QueryBuilder;
-use Omega\Database\Eloquent\SoftDeletes;
 use Omega\Database\Eloquent\Relations\BelongsTo;
 use Omega\Database\Eloquent\Relations\HasMany;
 use Omega\Database\Eloquent\Relations\HasOne;
@@ -78,7 +75,7 @@ abstract class Model implements \ArrayAccess {
 	 * @param string|null $table
 	 */
 	public function __construct( $data = [], $table = null ) {
-		$this->db = Omega::app( 'database' );
+		$this->db = app( 'database' );
 		$this->table = $table ?? self::getFullTableName();
 		$this->foregin_key = $this->modelToForeign( get_called_class() );
 

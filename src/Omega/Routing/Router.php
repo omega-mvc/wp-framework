@@ -2,7 +2,6 @@
 
 namespace Omega\Routing;
 
-use Omega\Omega;
 use Omega\Http\Json\JsonResource;
 use Omega\Http\Json\ResourceCollection;
 
@@ -208,7 +207,7 @@ class Router {
 						throw new \Exception( "WP_REST_Request requested but no request available for parameter: {$param->getName()}" );
 					}
 				} else {
-					$resolved[] = Omega::app( $className );
+					$resolved[] = app( $className );
 				}
 			} elseif ( $param->isDefaultValueAvailable() ) {
 				$resolved[] = $param->getDefaultValue();

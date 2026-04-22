@@ -16,6 +16,10 @@ defined( 'ABSPATH' ) || exit;
 
 class Application extends Container {
 
+    protected static $instance;
+
+    protected $basePath;
+
 	protected $id;
 
 	protected $snake_id;
@@ -25,13 +29,13 @@ class Application extends Container {
 	protected $routeFiles = [];
 
 	protected $migrationFolders = [];
-	protected $basePath;
 
 	protected $pluginRoot;
 
-	public function __construct( $id, $config = [] ) {
+	public function __construct( string $basePath, string $id ) {
+        $this->basePath = rtrim($basePath, '/');
 		$this->id = $id;
-		$this->snake_id = Str::toSnake( $id );
+		/**$this->snake_id = Str::toSnake( $id );
 
 		if ( isset( $config['base_path'] ) ) {
 			$this->setBasePath( $config['base_path'] );
@@ -39,7 +43,12 @@ class Application extends Container {
 
 		if ( isset( $config['plugin_root'] ) ) {
 			$this->pluginRoot = rtrim( $config['plugin_root'], '/' );
-		}
+		}*/
+
+        static::$instance = $this;
+
+        $this->instance('app', $this);
+        $this->instance(Container::class, $this);
 
 
 		$this->registerBaseBindings();
@@ -47,6 +56,10 @@ class Application extends Container {
 		$this->registerServiceProviders();
 		$this->registerCoreContainerAliases();
 	}
+
+    public static function getInstance() {
+        return static::$instance;
+    }
 
 	public function getId() {
 		return $this->id;

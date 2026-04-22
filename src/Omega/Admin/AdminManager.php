@@ -2,8 +2,6 @@
 
 namespace Omega\Admin;
 
-use Omega\Facades\Config;
-
 defined( 'ABSPATH' ) || exit;
 
 class AdminManager {

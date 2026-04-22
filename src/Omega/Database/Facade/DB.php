@@ -1,6 +1,8 @@
 <?php
 
-namespace Omega\Facades;
+namespace Omega\Database\Facade;
+
+use Omega\Facade\AbstractFacade;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -10,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @see \Omega\Database\Database
  */
-class DB extends Facade {
+class DB extends AbstractFacade {
 
 	protected static function getFacadeAccessor() {
 		return 'database';

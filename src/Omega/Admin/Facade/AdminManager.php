@@ -1,6 +1,8 @@
 <?php
 
-namespace Omega\Facades;
+namespace Omega\Admin\Facade;
+
+use Omega\Facade\AbstractFacade;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -10,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  * 
  * @see \Omega\Admin\AdminManager
  */
-class AdminManager extends Facade {
+class AdminManager extends AbstractFacade {
 	/**
 	 * Get the registered name of the component.
 	 *

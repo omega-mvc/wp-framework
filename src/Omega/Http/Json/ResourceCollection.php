@@ -2,8 +2,8 @@
 
 namespace Omega\Http\Json;
 
-use Omega\Support\Collection;
-use Omega\Support\Paginator;
+use Omega\Collection\Collection;
+use Omega\Paginator\Paginator;
 
 defined( 'ABSPATH' ) || exit;
 

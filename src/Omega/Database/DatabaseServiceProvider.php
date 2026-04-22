@@ -2,8 +2,8 @@
 
 namespace Omega\Database;
 
+use Omega\Container\ServiceProvider;
 use Omega\Database\Migrations\Migrator;
-use Omega\Support\ServiceProvider;
 
 defined( 'ABSPATH' ) || exit;
 

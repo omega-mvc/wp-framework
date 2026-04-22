@@ -2,8 +2,8 @@
 namespace Omega\Admin;
 
 use Automattic\WooCommerce\Utilities\FeaturesUtil;
-use Omega\Facades\Config;
 use Omega\Application\Application;
+use Omega\Config\Facades\Config;
 
 defined( 'ABSPATH' ) || exit;
 

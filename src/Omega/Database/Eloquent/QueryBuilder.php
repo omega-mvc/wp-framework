@@ -2,14 +2,13 @@
 
 namespace Omega\Database\Eloquent;
 
+use Omega\Collection\Collection;
 use Omega\Database\Database;
 use Omega\Database\Eloquent\Relations\BelongsTo;
 use Omega\Database\Eloquent\Relations\HasMany;
 use Omega\Database\Eloquent\Relations\HasOne;
-use Omega\Database\Eloquent\Model;
 use Omega\Database\Eloquent\Relations\Relation;
-use Omega\Support\Collection;
-use Omega\Support\Paginator;
+use Omega\Paginator\Paginator;
 
 defined( 'ABSPATH' ) || exit;
 

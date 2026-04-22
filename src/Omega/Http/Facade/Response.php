@@ -1,7 +1,8 @@
 <?php
 
-namespace Omega\Facades;
+namespace Omega\Http\Facade;
 
+use Omega\Facade\AbstractFacade;
 use Omega\Http\Response as HttpResponse;
 
 defined('ABSPATH') || exit;
@@ -10,7 +11,7 @@ defined('ABSPATH') || exit;
  * @method static \WP_Error|\WP_REST_Response json(array $data = [], int $status = 200, array $headers = [], int $options = 0)
  */
 
-class Response extends Facade
+class Response extends AbstractFacade
 {
 
     protected static function getFacadeAccessor()

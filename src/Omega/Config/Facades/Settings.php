@@ -1,6 +1,8 @@
 <?php
 
-namespace Omega\Facades;
+namespace Omega\Config\Facades;
+
+use Omega\Facade\AbstractFacade;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -18,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @see \Omega\Config\ConfigRepository
  */
-class Settings extends Facade {
+class Settings extends AbstractFacade {
 
 	protected static function getFacadeAccessor() {
 		return 'settings';

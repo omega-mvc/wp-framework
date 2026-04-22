@@ -1,6 +1,8 @@
 <?php
 
-namespace Omega\Facades;
+namespace Omega\Routing\Facade;
+
+use Omega\Facade\AbstractFacade;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -16,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @see \Omega\Routing\Router
  */
-class Route extends Facade {
+class Route extends AbstractFacade {
 	/**
 	 * Get the registered name of the component.
 	 *

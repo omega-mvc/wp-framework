@@ -2,15 +2,16 @@
 
 namespace Omega\Database\Eloquent;
 
-use Omega\Contracts\Database\Eloquent\CastsAttributes;
+use Omega\Application\ApplicationInstance;
+use Omega\Collection\Collection;
+use Omega\Database\Eloquent\CastsAttributesInterface;
 use Omega\Database\Database;
+use Omega\Database\Eloquent\Casts\Attribute;
 use Omega\Database\Eloquent\Relations\BelongsTo;
 use Omega\Database\Eloquent\Relations\HasMany;
 use Omega\Database\Eloquent\Relations\HasOne;
-use Omega\Database\Eloquent\Casts\Attribute;
-use Omega\Support\Collection;
-use Omega\Support\Paginator;
-use Omega\Utils\Reflection;
+use Omega\Database\Utils\Reflection;
+use Omega\Paginator\Paginator;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -75,7 +76,7 @@ abstract class Model implements \ArrayAccess {
 	 * @param string|null $table
 	 */
 	public function __construct( $data = [], $table = null ) {
-		$this->db = app( 'database' );
+		$this->db = ApplicationInstance::app( 'database' );
 		$this->table = $table ?? self::getFullTableName();
 		$this->foregin_key = $this->modelToForeign( get_called_class() );
 
@@ -590,7 +591,7 @@ abstract class Model implements \ArrayAccess {
 					$cast = new $cast;
 				}
 			}
-			if ( $cast instanceof CastsAttributes ) {
+			if ( $cast instanceof CastsAttributesInterface ) {
 				return $cast->get( $this, $key, $value, $this->data );
 			}
 		}
@@ -645,7 +646,7 @@ abstract class Model implements \ArrayAccess {
 					$cast = new $cast;
 				}
 			}
-			if ( $cast instanceof CastsAttributes ) {
+			if ( $cast instanceof CastsAttributesInterface ) {
 				return $cast->set( $this, $key, $value, $this->data );
 			}
 		}

@@ -1,5 +1,5 @@
 <?php
-namespace Omega\Utils;
+namespace Omega\Database\Utils;
 
 defined( 'ABSPATH' ) || exit;
 

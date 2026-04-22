@@ -1,8 +1,8 @@
 <?php
 
-namespace Omega\Support;
+namespace Omega\Validator;
 
-use Omega\Utils\Str;
+use Omega\Str\Str;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -94,7 +94,7 @@ class Validator {
 		return [];
 	}
 
-	public function all() {
+	public function getAll() {
 		return $this->data;
 	}
 

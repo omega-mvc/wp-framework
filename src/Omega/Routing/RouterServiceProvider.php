@@ -2,8 +2,7 @@
 
 namespace Omega\Routing;
 
-use Omega\Routing\RouterBuilder;
-use Omega\Support\ServiceProvider;
+use Omega\Container\ServiceProvider;
 
 defined( 'ABSPATH' ) || exit;
 

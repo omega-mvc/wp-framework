@@ -9,7 +9,6 @@ use Omega\Config\SettingsRepository;
 use Omega\Container\Container;
 use Omega\Database\DatabaseServiceProvider;
 use Omega\Routing\RouterServiceProvider;
-use Omega\Utils\Str;
 use Omega\View\ViewServiceProvider;
 
 defined( 'ABSPATH' ) || exit;

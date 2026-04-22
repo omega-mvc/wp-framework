@@ -3,8 +3,7 @@
 namespace Omega\Admin;
 
 use Omega\Admin\Menu\MenuBuilder;
-use Omega\Facades\Config;
-use Omega\Support\ServiceProvider;
+use Omega\Container\ServiceProvider;
 
 defined('ABSPATH') || exit;
 

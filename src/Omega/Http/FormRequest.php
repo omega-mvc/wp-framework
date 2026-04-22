@@ -2,7 +2,7 @@
 
 namespace Omega\Http;
 
-use Omega\Support\Validator;
+use Omega\Validator\Validator;
 
 
 defined( 'ABSPATH' ) || exit;

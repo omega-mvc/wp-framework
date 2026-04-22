@@ -1,8 +1,8 @@
 <?php
 
-namespace Omega\Support;
+namespace Omega\Paginator;
 
-use Omega\Support\Collection;
+use Omega\Collection\Collection;
 
 defined( 'ABSPATH' ) || exit;
 

@@ -1,10 +1,10 @@
 <?php
 namespace Omega\Database\Migrations;
 
+use Omega\Application\Application;
 use Omega\Database\Database;
 use Omega\Database\Schema\Blueprint;
 use Omega\Database\Schema\Schema;
-use Omega\Application\Application;
 
 defined( 'ABSPATH' ) || exit;
 class Migrator {

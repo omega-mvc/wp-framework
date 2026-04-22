@@ -1,6 +1,8 @@
 <?php
 
-namespace Omega\Facades;
+namespace Omega\View\Facade;
+
+use Omega\Facade\AbstractFacade;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -9,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @see \Omega\View\ViewServiceProvider
  */
-class View extends Facade {
+class View extends AbstractFacade {
 	/**
 	 * Get the registered name of the component.
 	 *

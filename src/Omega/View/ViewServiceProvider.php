@@ -2,7 +2,7 @@
 
 namespace Omega\View;
 
-use Omega\Support\ServiceProvider;
+use Omega\Container\ServiceProvider;
 
 defined( 'ABSPATH' ) || exit;
 

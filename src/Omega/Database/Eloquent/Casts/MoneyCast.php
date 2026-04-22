@@ -2,9 +2,9 @@
 
 namespace Omega\Database\Eloquent\Casts;
 
-use Omega\Contracts\Database\Eloquent\CastsAttributes;
+use Omega\Database\Eloquent\CastsAttributesInterface;
 
-class MoneyCast implements CastsAttributes {
+class MoneyCast implements CastsAttributesInterface {
 
 	public function get( $model, string $key, $value, array $attributes ) {
 		return $value / 100;

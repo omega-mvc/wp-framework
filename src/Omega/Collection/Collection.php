@@ -1,6 +1,6 @@
 <?php
 
-namespace Omega\Support;
+namespace Omega\Collection;
 
 use Omega\Database\Eloquent\Model;
 

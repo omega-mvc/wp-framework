@@ -1,10 +1,13 @@
 <?php
 
-namespace Omega\Facades;
+namespace Omega\Facade;
+
+use Omega\Application\ApplicationInstance;
+use Omega\Facade\Exception\FacadeObjectNotSetException;
 
 defined( 'ABSPATH' ) || exit;
 
-abstract class Facade {
+abstract class AbstractFacade implements FacadeInterface {
 	protected static $resolvedInstance = [];
 
 	public static function __callStatic( $method, $args ) {
@@ -21,8 +24,8 @@ abstract class Facade {
 		return static::resolveFacadeInstance( static::getFacadeAccessor() );
 	}
 
-	protected static function getFacadeAccessor() {
-		throw new \RuntimeException( 'Facade does not define a facade accessor.' );
+	public static function getFacadeAccessor() {
+		throw new FacadeObjectNotSetException( 'Facade does not define a facade accessor.' );
 	}
 
 	protected static function resolveFacadeInstance( $name ) {
@@ -30,7 +33,7 @@ abstract class Facade {
 			return static::$resolvedInstance[ $name ];
 		}
 
-		return static::$resolvedInstance[ $name ] = app( $name );
+		return static::$resolvedInstance[ $name ] = ApplicationInstance::app( $name );
 	}
 
 	public static function clearResolvedInstance( $name ) {

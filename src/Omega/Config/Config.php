@@ -2,8 +2,6 @@
 
 namespace Omega\Config;
 
-use Omega\Application\Application;
-
 defined( 'ABSPATH' ) || exit;
 
 /**

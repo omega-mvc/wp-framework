@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
-use Omega\Application\Application;
+namespace Omega\Application;
 
-if (!function_exists('app')) {
-    function app($service = null) {
+use RuntimeException;
+
+class ApplicationInstance
+{
+    public static function app($service = null)
+    {
         $app = Application::getInstance();
 
         if (is_null($app)) {

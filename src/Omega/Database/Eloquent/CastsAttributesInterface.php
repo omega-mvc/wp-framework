@@ -1,10 +1,10 @@
 <?php
 
-namespace Omega\Contracts\Database\Eloquent;
+namespace Omega\Database\Eloquent;
 
 use Omega\Database\Eloquent\Model;
 
-interface CastsAttributes {
+interface CastsAttributesInterface {
 	/**
 	 * Transform the attribute from the underlying model values.
 	 *

@@ -1,9 +1,9 @@
 <?php
 namespace Omega\Database;
 
-use Omega\Omega;
-use Omega\Database\Migrations\Migrate;
 use Omega\Application\Application;
+use Omega\Database\Migrations\Migrate;
+use Omega\Omega;
 use Omega\Support\Container;
 
 defined( 'ABSPATH' ) || exit;

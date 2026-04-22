@@ -2,7 +2,7 @@
 
 namespace Omega\Database\Schema;
 
-use Omega\Support\Collection;
+use Omega\Collection\Collection;
 
 defined( 'ABSPATH' ) || exit;
 

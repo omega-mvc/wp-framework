@@ -2,9 +2,9 @@
 
 namespace Omega\Database\Eloquent\Casts;
 
-use Omega\Contracts\Database\Eloquent\CastsAttributes;
+use Omega\Database\Eloquent\CastsAttributesInterface;
 
-class BooleanCast implements CastsAttributes {
+class BooleanCast implements CastsAttributesInterface {
 
 	public function get( $model, string $key, $value, array $attributes ) {
 		return (bool) $value;

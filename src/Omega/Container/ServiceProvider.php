@@ -1,6 +1,6 @@
 <?php
 
-namespace Omega\Support;
+namespace Omega\Container;
 
 use Omega\Application\Application;
 

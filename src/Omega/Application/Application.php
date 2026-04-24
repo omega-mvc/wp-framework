@@ -1,48 +1,56 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Application;
 
 use Omega\Admin\AdminServiceProvider;
-use Omega\Config\Config;
+use Omega\Config\ConfigRepository;
 use Omega\Config\ConfigServiceProvider;
 use Omega\Config\SettingsRepository;
 use Omega\Container\Container;
 use Omega\Database\DatabaseServiceProvider;
 use Omega\Routing\RouterServiceProvider;
+use Omega\Str\Str;
 use Omega\View\ViewServiceProvider;
 
-defined( 'ABSPATH' ) || exit;
+use function array_filter;
+use function array_map;
+use function file_exists;
+use function get_class;
+use function get_file_data;
+use function is_array;
+use function is_string;
+use function method_exists;
+use function rtrim;
 
-class Application extends Container {
+class Application extends Container
+{
+    protected static Application $instance;
 
-    protected static $instance;
+    protected string $basePath;
 
-    protected $basePath;
+    protected string $id;
 
-	protected $id;
+    protected array $serviceProviders = [];
 
-	protected $snake_id;
+    protected array $routeFiles = [];
 
-	protected $serviceProviders = [];
+    protected array $migrationFolders = [];
 
-	protected $routeFiles = [];
+    protected string $pluginRoot;
 
-	protected $migrationFolders = [];
+    public function __construct(array $config, string $id)
+    {
+        $this->id = $id;
 
-	protected $pluginRoot;
+        if (isset($config['base_path'])) {
+            $this->setBasePath($config['base_path']);
+        }
 
-	public function __construct( string $basePath, string $id ) {
-        $this->basePath = rtrim($basePath, '/');
-		$this->id = $id;
-		/**$this->snake_id = Str::toSnake( $id );
-
-		if ( isset( $config['base_path'] ) ) {
-			$this->setBasePath( $config['base_path'] );
-		}
-
-		if ( isset( $config['plugin_root'] ) ) {
-			$this->pluginRoot = rtrim( $config['plugin_root'], '/' );
-		}*/
+        if (isset($config['plugin_root'])) {
+            $this->pluginRoot = rtrim($config['plugin_root'], '/');
+        }
 
         static::$instance = $this;
 
@@ -50,165 +58,186 @@ class Application extends Container {
         $this->instance(Container::class, $this);
 
 
-		$this->registerBaseBindings();
-		$this->registerBaseServiceProviders();
-		$this->registerServiceProviders();
-		$this->registerCoreContainerAliases();
-	}
+        $this->registerBaseBindings();
+        $this->registerBaseServiceProviders();
+        $this->registerServiceProviders();
+        $this->registerCoreContainerAliases();
+    }
 
-    public static function getInstance() {
+    public static function getInstance(): Application
+    {
         return static::$instance;
     }
 
-	public function getId() {
-		return $this->id;
-	}
+    public function getId(): string
+    {
+        return $this->id;
+    }
 
-	/**
-	 * Get id with underscore, ex: my-app-id => my_app_id
-	 *
-	 * @return array|string
-	 */
-	public function getIdAsUnderscore() {
-		return str_replace( '-', '_', $this->id );
-	}
+    /**
+     * Get id with underscore, ex: my-app-id => my_app_id
+     *
+     * @return array|string
+     */
+    public function getIdAsUnderscore(): array|string
+    {
+        return Str::toSnake($this->id);
+    }
 
-	public function getBasePath() {
-		return $this->basePath;
-	}
+    public function getBasePath(): string
+    {
+        return $this->basePath;
+    }
 
-	public function pluginRoot() {
-		return $this->pluginRoot;
-	}
+    public function pluginRoot(): string
+    {
+        return $this->pluginRoot;
+    }
 
-	public function getPluginFile() {
-		return "{$this->pluginRoot()}/{$this->getId()}.php";
-	}
+    public function getPluginFile(): string
+    {
+        return "{$this->pluginRoot()}/{$this->getId()}.php";
+    }
 
-	public function booted( \Closure $callback ) {
-		add_action( "{$this->snake_id}_app_booted", $callback );
-	}
+    protected function setBasePath($basePath): void
+    {
+        $this->basePath = rtrim($basePath, '/');
+    }
 
-	protected function setBasePath( $basePath ) {
-		$this->basePath = rtrim( $basePath, '/' );
-	}
+    protected function registerBaseBindings()
+    {
 
-	protected function registerBaseBindings() {
+    }
 
-	}
+    protected function registerBaseServiceProviders(): void
+    {
+        $this->register(new ConfigServiceProvider($this));
+        $this->register(new RouterServiceProvider($this));
+        $this->register(new DatabaseServiceProvider($this));
+        $this->register(new ViewServiceProvider($this));
+        $this->register(new AdminServiceProvider($this));
+    }
 
-	protected function registerBaseServiceProviders() {
-		$this->register( new ConfigServiceProvider( $this ) );
-		$this->register( new RouterServiceProvider( $this ) );
-		$this->register( new DatabaseServiceProvider( $this ) );
-		$this->register( new ViewServiceProvider( $this ) );
-		$this->register( new AdminServiceProvider( $this ) );
-	}
+    protected function registerServiceProviders(): void
+    {
+        $providersFile = $this->getBasePath() . '/config/providers.php';
+        if (file_exists($providersFile)) {
+            $providers = include $providersFile;
+            if (is_array($providers)) {
+                foreach ($providers as $provider) {
+                    $this->register($provider);
+                }
+            }
+        }
+    }
 
-	protected function registerServiceProviders() {
-		$providersFile = $this->getBasePath() . '/config/providers.php';
-		if ( file_exists( $providersFile ) ) {
-			$providers = include $providersFile;
-			if ( is_array( $providers ) ) {
-				foreach ( $providers as $provider ) {
-					$this->register( $provider );
-				}
-			}
-		}
-	}
+    protected function registerCoreContainerAliases()
+    {
 
-	protected function registerCoreContainerAliases() {
+    }
 
-	}
+    public function register($provider)
+    {
+        $class = is_string($provider) ? $provider : get_class($provider);
 
-	public function register( $provider ) {
-		$class = is_string( $provider ) ? $provider : get_class( $provider );
-		if ( isset( $this->serviceProviders[ $class ] ) ) {
-			return $this->serviceProviders[ $class ];
-		}
+        if (isset($this->serviceProviders[$class])) {
+            return $this->serviceProviders[$class];
+        }
 
-		if ( is_string( $provider ) ) {
-			$provider = new $provider( $this );
-		}
+        if (is_string($provider)) {
+            $provider = new $provider($this);
+        }
 
-		$this->serviceProviders[ $class ] = $provider;
-		if ( method_exists( $provider, 'register' ) ) {
-			$provider->register();
-		}
-		return $provider;
-	}
+        $this->serviceProviders[$class] = $provider;
+        if (method_exists($provider, 'register')) {
+            $provider->register();
+        }
 
-	public function bootstrap() {
-		foreach ( $this->serviceProviders as $provider ) {
-			if ( method_exists( $provider, 'boot' ) ) {
-				$provider->boot();
-			}
-		}
+        return $provider;
+    }
 
-	}
+    public function bootstrap(): void
+    {
+        foreach ($this->serviceProviders as $provider) {
+            if (method_exists($provider, 'boot')) {
+                $provider->boot();
+            }
+        }
 
-	public function addRouteFile( $path, $type = 'api' ) {
-		$this->routeFiles[] = [
-			'type' => $type,
-			'path' => $path
-		];
-	}
+    }
 
-	public function addMigrationFolder( $path ) {
-		$this->migrationFolders[] = $path;
-	}
+    public function addRouteFile($path, $type = 'api'): void
+    {
+        $this->routeFiles[] = [
+            'type' => $type,
+            'path' => $path
+        ];
+    }
 
-	public function getRestRouteFiles() {
-		return array_map(
-			fn( $route ) => $route['path'],
-			array_filter( $this->routeFiles, fn( $route ) => $route['type'] === 'api' )
-		);
-	}
+    public function addMigrationFolder($path): void
+    {
+        $this->migrationFolders[] = $path;
+    }
 
-	public function getAdminRouteFiles() {
-		return array_map(
-			fn( $route ) => $route['path'],
-			array_filter( $this->routeFiles, fn( $route ) => $route['type'] === 'admin' )
-		);
-	}
+    public function getRestRouteFiles(): array
+    {
+        return array_map(
+            fn($route) => $route['path'],
+            array_filter($this->routeFiles, fn($route) => $route['type'] === 'api')
+        );
+    }
 
-	public function getMigrationFolders() {
-		return $this->migrationFolders;
-	}
+    public function getAdminRouteFiles(): array
+    {
+        return array_map(
+            fn($route) => $route['path'],
+            array_filter($this->routeFiles, fn($route) => $route['type'] === 'admin')
+        );
+    }
 
-	public function version() {
-		$plugin_file = $this->getPluginFile();
+    public function getMigrationFolders(): array
+    {
+        return $this->migrationFolders;
+    }
 
-		$data = get_file_data(
-			$plugin_file,
-			[ 'Version' => 'Version' ]
-		);
+    public function version(): string
+    {
+        $plugin_file = $this->getPluginFile();
 
-		return $data['Version'] ?? '1.0.0';
-	}
+        $data = get_file_data(
+            $plugin_file,
+            ['Version' => 'Version']
+        );
 
-	/**
-	 * Config Service
-	 *
-	 * @return Config
-	 */
-	public function config() {
-		return $this->make( 'config' );
-	}
+        return $data['Version'] ?? '1.0.0';
+    }
 
-	public function getTranslations() {
-		$base = $this->getBasePath();
-		$path = "{$base}/resources/lang/translations.php";
-		return include $path;
-	}
+    /**
+     * Config Service
+     *
+     * @return ConfigRepository
+     */
+    public function config(): ConfigRepository
+    {
+        return $this->make('config');
+    }
+
+    public function getTranslations()
+    {
+        $base = $this->getBasePath();
+        $path = "$base/resources/lang/translations.php";
+
+        return include $path;
+    }
 
 
-	/**
-	 * Settings Service
-	 *
-	 * @return SettingsRepository
-	 */
-	public function settings() {
-		return $this->make( 'settings' );
-	}
+    /**
+     * Settings Service
+     *
+     * @return SettingsRepository
+     */
+    public function settings(): SettingsRepository
+    {
+        return $this->make('settings');
+    }
 }

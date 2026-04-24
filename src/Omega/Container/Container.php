@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace Omega\Container;
 
+use Closure;
+use ReflectionException;
+use ReflectionFunction;
+
+use function is_string;
+
 class Container
 {
     protected array $instances = [];
+
     protected array $bindings = [];
 
     public function instance($abstract, $instance = null)
@@ -18,7 +25,7 @@ class Container
         $this->instances[$abstract] = $instance;
     }
 
-    public function bind($abstract, $concrete = null)
+    public function bind($abstract, $concrete = null): void
     {
         $this->bindings[$abstract] = [
             'concrete' => $concrete ?: $abstract,
@@ -26,7 +33,7 @@ class Container
         ];
     }
 
-    public function singleton($abstract, $concrete = null)
+    public function singleton($abstract, $concrete = null): void
     {
         $this->bindings[$abstract] = [
             'concrete' => $concrete ?: $abstract,
@@ -34,36 +41,44 @@ class Container
         ];
     }
 
-    public function make( $abstract ) {
-        if ( isset( $this->instances[ $abstract ] ) ) {
-            return $this->instances[ $abstract ];
+    /**
+     * @throws ReflectionException
+     */
+    public function make($abstract)
+    {
+        if (isset($this->instances[$abstract])) {
+            return $this->instances[$abstract];
         }
 
-        if ( isset( $this->bindings[ $abstract ] ) ) {
-            $binding = $this->bindings[ $abstract ];
+        if (isset($this->bindings[$abstract])) {
+            $binding = $this->bindings[$abstract];
 
-            if ( $binding['shared'] ) {
-                $instance = $this->build( $binding['concrete'] );
-                $this->instances[ $abstract ] = $instance;
+            if ($binding['shared']) {
+                $instance = $this->build($binding['concrete']);
+                $this->instances[$abstract] = $instance;
                 return $instance;
             } else {
-                return $this->build( $binding['concrete'] );
+                return $this->build($binding['concrete']);
             }
         }
 
-        return $this->build( $abstract );
+        return $this->build($abstract);
     }
 
-    protected function build( $concrete ) {
-        if ( $concrete instanceof \Closure ) {
-            $reflection = new \ReflectionFunction( $concrete );
-            if ( $reflection->getNumberOfParameters() > 0 ) {
-                return $concrete( $this );
+    /**
+     * @throws ReflectionException
+     */
+    protected function build($concrete)
+    {
+        if ($concrete instanceof Closure) {
+            $reflection = new ReflectionFunction($concrete);
+            if ($reflection->getNumberOfParameters() > 0) {
+                return $concrete($this);
             }
             return $concrete();
         }
 
-        if ( is_string( $concrete ) ) {
+        if (is_string($concrete)) {
             return new $concrete();
         }
 

@@ -1,69 +1,165 @@
 <?php
+
+/**
+ * Part of Omega - Str Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
+declare(strict_types=1);
+
 namespace Omega\Str;
 
-defined( 'ABSPATH' ) || exit;
+use function array_key_exists;
+use function count;
+use function explode;
+use function is_array;
+use function str_contains;
+use function str_replace;
+use function strncmp;
 
-class Str {
-	/**
-	 * Get nested value from array using dot notation
-	 * 
-	 * @param array $data The data array
-	 * @param string $key The key (supports dot notation like 'customer.email')
-	 * @param mixed $default Default value if key not found
-	 * @return mixed
-	 */
-	public static function getNestedValue( array $data, string $key, $default = null ) {
-		if ( strpos( $key, '.' ) === false ) {
-			return $data[ $key ] ?? $default;
-		}
+/**
+ * String and array utility helper with dot-notation support.
+ *
+ * This class provides lightweight helpers for working with arrays
+ * and strings in a structured way, inspired by framework-style
+ * utility classes.
+ *
+ * It includes:
+ * - Nested array access using dot notation
+ * - Nested array mutation using dot notation
+ * - Basic string utilities used across the framework
+ *
+ * Example usage:
+ *
+ * $data = [
+ *     'user' => [
+ *         'email' => 'test@example.com'
+ *     ]
+ * ];
+ *
+ * $email = Str::getNestedValue($data, 'user.email');
+ *
+ * Str::setNestedValue($data, 'user.name', 'John');
+ *
+ * ------------------------------------------------------------
+ * DESIGN NOTES
+ * ------------------------------------------------------------
+ *
+ * This class is intentionally stateless and static-only.
+ * It is meant to be used as a low-level utility layer across
+ * the framework (Validator, Models, etc.).
+ *
+ * It does not perform validation or type coercion.
+ *
+ * @category  Omega
+ * @package   Str
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+class Str
+{
+    /**
+     * Retrieve a value from an array using dot notation.
+     *
+     * Supports deep access without requiring manual traversal.
+     *
+     * Example:
+     * 'user.profile.email'
+     *
+     * @param array $data The source array
+     * @param string $key Dot-notation key path
+     * @param mixed|null $default Default value if key does not exist
+     * @return mixed Returns found value or default
+     */
+    public static function getNestedValue(array $data, string $key, mixed $default = null): mixed
+    {
+        if (!str_contains($key, '.')) {
+            return $data[$key] ?? $default;
+        }
 
-		$keys = explode( '.', $key );
-		$value = $data;
+        $keys = explode('.', $key);
+        $value = $data;
 
-		foreach ( $keys as $segment ) {
-			if ( ! is_array( $value ) || ! array_key_exists( $segment, $value ) ) {
-				return $default;
-			}
-			$value = $value[ $segment ];
-		}
+        foreach ($keys as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return $default;
+            }
+            $value = $value[$segment];
+        }
 
-		return $value;
-	}
+        return $value;
+    }
 
-	/**
-	 * Set nested value in array using dot notation
-	 * 
-	 * @param array &$data The data array (passed by reference)
-	 * @param string $key The key (supports dot notation like 'customer.email')
-	 * @param mixed $value The value to set
-	 * @return void
-	 */
-	public static function setNestedValue( array &$data, string $key, $value ) {
-		if ( strpos( $key, '.' ) === false ) {
-			$data[ $key ] = $value;
-			return;
-		}
+    /**
+     * Set a value in an array using dot notation.
+     *
+     * Automatically creates intermediate array levels if they do not exist.
+     *
+     * Example:
+     * 'user.profile.email'
+     *
+     * @param array $data The target array (by reference)
+     * @param string $key Dot-notation key path
+     * @param mixed $value Value to assign
+     * @return void
+     */
+    public static function setNestedValue(array &$data, string $key, mixed $value): void
+    {
+        if (!str_contains($key, '.')) {
+            $data[$key] = $value;
+            return;
+        }
 
-		$keys = explode( '.', $key );
-		$current = &$data;
+        $keys = explode('.', $key);
+        $current = &$data;
 
-		foreach ( $keys as $i => $segment ) {
-			if ( $i === count( $keys ) - 1 ) {
-				$current[ $segment ] = $value;
-			} else {
-				if ( ! isset( $current[ $segment ] ) || ! is_array( $current[ $segment ] ) ) {
-					$current[ $segment ] = [];
-				}
-				$current = &$current[ $segment ];
-			}
-		}
-	}
+        foreach ($keys as $i => $segment) {
+            if ($i === count($keys) - 1) {
+                $current[$segment] = $value;
+            } else {
+                if (!isset($current[$segment]) || !is_array($current[$segment])) {
+                    $current[$segment] = [];
+                }
+                $current = &$current[$segment];
+            }
+        }
+    }
 
-	public static function toSnake( string $string ): string {
-		return str_replace( '-', '_', $string );
-	}
+    /**
+     * Convert a string to snake-case format.
+     *
+     * This implementation currently replaces hyphens with underscores.
+     *
+     * Example:
+     * "user-name" → "user_name"
+     *
+     * @param string $string Input string
+     * @return string Converted string in snake_case format
+     */
+    public static function toSnake(string $string): string
+    {
+        return str_replace('-', '_', $string);
+    }
 
-	public static function startsWith( string $haystack, string $needle ): bool {
-		return strncmp( $haystack, $needle, strlen( $needle ) ) === 0;
-	}
+    /**
+     * Determine whether a string starts with a given prefix.
+     *
+     * This is a lightweight, binary-safe implementation using strncmp.
+     *
+     * @param string $haystack The full string to check
+     * @param string $needle The prefix to search for
+     * @return bool True if haystack starts with needle, otherwise false
+     */
+    public static function startsWith(string $haystack, string $needle): bool
+    {
+        return strncmp($haystack, $needle, strlen($needle)) === 0;
+    }
 }

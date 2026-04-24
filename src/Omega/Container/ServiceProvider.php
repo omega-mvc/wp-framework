@@ -22,12 +22,12 @@ class ServiceProvider
 
     }
 
-    public function loadRoutesFrom($path, $type = 'api')
+    public function loadRoutesFrom($path, $type = 'api'): void
     {
         $this->app->addRouteFile($path, $type);
     }
 
-    public function loadMigrationsFrom($path)
+    public function loadMigrationsFrom($path): void
     {
         $this->app->addMigrationFolder($path);
     }

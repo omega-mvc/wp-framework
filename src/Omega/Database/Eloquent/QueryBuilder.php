@@ -988,6 +988,6 @@ class QueryBuilder {
 			->limit( $per_page )
 			->get();
 
-		return new Paginator( $items->all(), $total, $per_page, $current_page );
+		return new Paginator( $items->getAll(), $total, $per_page, $current_page );
 	}
 }

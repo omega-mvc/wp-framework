@@ -2,59 +2,51 @@
 
 namespace Omega\Admin;
 
-defined( 'ABSPATH' ) || exit;
+use function add_action;
+use function array_any;
+use function remove_all_actions;
 
-class AdminManager {
+class AdminManager
+{
+    private array $hiddenPages = [];
 
-	private $hiddenPages = [];
+    public function __construct()
+    {
+    }
 
-	public function __construct() {
+    public function init(): void
+    {
+        add_action('in_admin_header', [$this, 'hideNotices'], 99);
+    }
 
-	}
+    public function maybeHideNotices(): bool
+    {
+        if (!isset($_GET['page'])) {
+            return false;
+        }
 
-	public function init() {
-		add_action( 'in_admin_header', [ $this, 'hide_notices' ], 99 );
-	}
+        $current_page = $_GET['page'];
 
-	/**
-	 * Adds an admin menu page.
-	 * @param array $args [
-	 *   'title' => (string) Menu title (required),
-	 *   'id' => (string) Menu slug (optional),
-	 *   'icon' => (string) Icon (optional),
-	 *   'capability' => (string) Capability (required),
-	 *   'position' => (int) Position (optional)
-	 *   'hide_notices' => (bool) Whether to hide notices on this page (optional, default: false)
-	 * ]
-	 */
+        return array_any($this->hiddenPages, fn($page) => $current_page === $page);
 
-	public function maybeHideNotices() {
-		if ( ! isset( $_GET['page'] ) ) {
-			return false;
-		}
-		$current_page = $_GET['page'];
-		foreach ( $this->hiddenPages as $page ) {
-			if ( $current_page === $page ) {
-				return true;
-			}
-		}
-		return false;
-	}
+    }
 
-	public function addHiddenNoticesPage( $id ) {
-		$this->hiddenPages[] = $id;
-	}
+    public function addHiddenNoticesPage($id): void
+    {
+        $this->hiddenPages[] = $id;
+    }
 
-	public function hide_notices() {
-		if ( ! $this->maybeHideNotices() ) {
-			return;
-		}
-		remove_all_actions( 'user_admin_notices' );
-		remove_all_actions( 'admin_notices' );
-	}
+    public function hideNotices(): void
+    {
+        if (!$this->maybeHideNotices()) {
+            return;
+        }
 
-	public function silence_render() {
-	}
+        remove_all_actions('user_admin_notices');
+        remove_all_actions('admin_notices');
+    }
 
-
+    public function silenceRender(): void
+    {
+    }
 }

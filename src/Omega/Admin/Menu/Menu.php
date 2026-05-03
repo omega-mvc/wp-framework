@@ -1,25 +1,27 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Omega\Admin\Menu;
 
-defined( 'ABSPATH' ) || exit;
-
-class Menu extends MenuItem
+class Menu extends AbstractMenuItem
 {
-    protected $submenus = [];
+    protected array $submenus = [];
 
-    public function addSubmenu($title, $slug = null)
+    public function addSubmenu($title, $slug = null): Submenu
     {
-        $submenu = (new Submenu($this))->slug($slug ?? $this->getSlug())->title($title);
+        $submenu = new Submenu($this)->slug($slug ?? $this->getSlug())->title($title);
         $this->submenus[] = $submenu;
+
         return $submenu;
     }
 
-    public function getSubmenus()
+    public function getSubmenus(): array
     {
         return $this->submenus;
     }
 
-    public function hasSubmenus()
+    public function hasSubmenus(): bool
     {
         return !empty($this->submenus);
     }

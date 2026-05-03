@@ -34,7 +34,6 @@ use function usort;
  */
 class Collection implements ArrayAccess, IteratorAggregate
 {
-
     public mixed $items = [];
 
     /**

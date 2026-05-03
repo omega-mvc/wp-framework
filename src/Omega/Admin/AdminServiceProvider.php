@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Admin;
 
-use Omega\Admin\Menu\MenuBuilder;
+use Omega\Admin\Menu\AbstractMenuBuilder;
 use Omega\Container\ServiceProvider;
+use ReflectionException;
 
-defined('ABSPATH') || exit;
+use function add_action;
+use function class_exists;
+use function load_plugin_textdomain;
 
 class AdminServiceProvider extends ServiceProvider
 {
@@ -14,8 +19,8 @@ class AdminServiceProvider extends ServiceProvider
 	 *
 	 * @return void
 	 */
-	public function register()
-	{
+	public function register(): void
+    {
 		$app = $this->app;
 		$app->singleton('admin.manager', AdminManager::class);
 		$app->singleton(WooCommerce::class, function () use ($app) {
@@ -23,17 +28,23 @@ class AdminServiceProvider extends ServiceProvider
 		});
 	}
 
-	public function boot()
-	{
-		add_action('admin_menu', [$this, 'admin_menu']);
-		add_action('admin_init', [$this, 'admin_setup']);
+    /**
+     * @throws ReflectionException
+     */
+    public function boot(): void
+    {
+		add_action('admin_menu', [$this, 'adminMenu']);
+		add_action('admin_init', [$this, 'adminSetup']);
 		add_action('init', [$this, 'init']);
 
 		$this->app->make(WooCommerce::class)->init();
 		$this->app->make('admin.manager')->init();
 	}
 
-	public function init(): void
+    /**
+     * @throws ReflectionException
+     */
+    public function init(): void
 	{
 		$enable_translation = $this->app->make('config')->boolean('app.enable_translation');
 
@@ -46,27 +57,33 @@ class AdminServiceProvider extends ServiceProvider
 		}
 	}
 
-	public function admin_setup(): void
+    /**
+     * @throws ReflectionException
+     */
+    public function adminSetup(): void
 	{
-		$setup_class = $this->app->make('config')->string('app.admin_setup_class');
+		$setupClass = $this->app->make('config')->string('app.admin_setup_class');
 
-		if (! class_exists($setup_class)) {
+		if (!class_exists($setupClass)) {
 			return;
 		}
 
-		$setup = new $setup_class();
+		$setup = new $setupClass();
 	}
 
-	public function admin_menu()
-	{
-		$menu_class = $this->app->make('config')->string('app.admin_menu_class');
+    /**
+     * @throws ReflectionException
+     */
+    public function adminMenu(): void
+    {
+		$menuClass = $this->app->make('config')->string('app.admin_menu_class');
 
-		if (! class_exists($menu_class)) {
+		if (!class_exists($menuClass)) {
 			return;
 		}
 
-		/** @var MenuBuilder $adminMenu **/
-		$adminMenu = new $menu_class($this->app);
+		/** @var AbstractMenuBuilder $adminMenu **/
+		$adminMenu = new $menuClass($this->app);
 		$adminMenu->register();
 		$adminMenu->create();
 	}

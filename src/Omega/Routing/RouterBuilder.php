@@ -1,89 +1,121 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Routing;
 
+use Exception;
 use Omega\Application\Application;
+use ReflectionException;
 
-defined( 'ABSPATH' ) || exit;
+use function end;
 
-class RouterBuilder {
-	protected $instances = [];
+class RouterBuilder
+{
+    protected array $instances = [];
 
-	protected $groupDepth = 0;
+    protected int $groupDepth = 0;
 
-	/**
-	 * @var Application
-	 */
-	protected $app;
+    public function __construct(protected Application $app)
+    {
+    }
 
-	public function __construct( Application $app ) {
-		$this->app = $app;
-	}
+    /**
+     * Get instance
+     *
+     * @return Router
+     */
+    protected function getInstance(): Router
+    {
+        if ($this->groupDepth > 0 && !empty($this->instances)) {
+            return end($this->instances);
+        } else {
+            $instance = new Router($this);
+            $this->instances[] = $instance;
+            return $instance;
+        }
+    }
 
-	/**
-	 * Get instance
-	 *
-	 * @return Router
-	 */
-	protected function getInstance() {
-		if ( $this->groupDepth > 0 && ! empty( $this->instances ) ) {
-			return end( $this->instances );
-		} else {
-			$instance = new Router( $this );
-			$this->instances[] = $instance;
-			return $instance;
-		}
-	}
+    public function prefix($prefix): Router
+    {
+        $instance = $this->getInstance();
+        $instance->prefix($prefix);
 
-	public function prefix( $prefix ) {
-		$instance = $this->getInstance();
-		$instance->prefix( $prefix );
-
-		return $instance;
-	}
+        return $instance;
+    }
 
 
-	public function page( $id, $options = [] ) {
-		$instance = $this->getInstance();
+    /**
+     * @throws ReflectionException
+     */
+    public function page($id, $options = []): Router
+    {
+        $instance = $this->getInstance();
 
-		$this->app->make( 'admin.manager' )->addHiddenNoticesPage( $id );
+        $this->app->make('admin.manager')->addHiddenNoticesPage($id);
 
-		$instance->page( $id, $options );
+        $instance->page($id, $options);
 
-		return $instance;
-	}
+        return $instance;
+    }
 
-	public function get( $uri, $action = null ) {
-		$instance = $this->getInstance();
-		return $instance->addRoute( 'GET', $uri, $action );
-	}
+    /**
+     * @throws Exception
+     */
+    public function get($uri, $action = null): array
+    {
+        $instance = $this->getInstance();
 
-	public function post( $uri, $action = null ) {
-		$instance = $this->getInstance();
-		return $instance->addRoute( 'POST', $uri, $action );
-	}
+        return $instance->addRoute('GET', $uri, $action);
+    }
 
-	public function put( $uri, $action = null ) {
-		$instance = $this->getInstance();
-		return $instance->addRoute( 'PUT', $uri, $action );
-	}
+    /**
+     * @throws Exception
+     */
+    public function post($uri, $action = null): array
+    {
+        $instance = $this->getInstance();
 
-	public function patch( $uri, $action = null ) {
-		$instance = $this->getInstance();
-		return $instance->addRoute( 'PATCH', $uri, $action );
-	}
+        return $instance->addRoute('POST', $uri, $action);
+    }
 
-	public function delete( $uri, $action = null ) {
-		$instance = $this->getInstance();
-		return $instance->addRoute( 'DELETE', $uri, $action );
-	}
+    /**
+     * @throws Exception
+     */
+    public function put($uri, $action = null): array
+    {
+        $instance = $this->getInstance();
 
-	public function increaseGroupDepth() {
-		$this->groupDepth++;
-	}
+        return $instance->addRoute('PUT', $uri, $action);
+    }
 
-	public function decreaseGroupDepth() {
-		$this->groupDepth--;
-	}
+    /**
+     * @throws Exception
+     */
+    public function patch($uri, $action = null): array
+    {
+        $instance = $this->getInstance();
 
+        return $instance->addRoute('PATCH', $uri, $action);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function delete($uri, $action = null): array
+    {
+        $instance = $this->getInstance();
+
+        return $instance->addRoute('DELETE', $uri, $action);
+    }
+
+    public function increaseGroupDepth(): void
+    {
+        $this->groupDepth++;
+    }
+
+    public function decreaseGroupDepth(): void
+    {
+        $this->groupDepth--;
+    }
 }

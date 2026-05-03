@@ -1,48 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Admin\Menu;
 
-defined('ABSPATH') || exit;
-
-class Submenu extends MenuItem
+class Submenu extends AbstractMenuItem
 {
-	protected $parentMenu;
+    public mixed $callback;
 
-	public $callback;
+    public function __construct(protected mixed $parentMenu = null)
+    {
+    }
 
-	public function __construct($parentMenu = null)
-	{
-		$this->parentMenu = $parentMenu;
-	}
+    public function getParentMenu(): mixed
+    {
+        return $this->parentMenu;
+    }
 
-	public function getParentMenu()
-	{
-		return $this->parentMenu;
-	}
+    public function setParentMenu(mixed $parentMenu): static
+    {
+        $this->parentMenu = $parentMenu;
 
-	public function setParentMenu($parentMenu)
-	{
-		$this->parentMenu = $parentMenu;
-		return $this;
-	}
+        return $this;
+    }
 
-	public function setCallback($callback)
-	{
-		$this->callback = $callback;
-		return $this;
-	}
+    public function setCallback(callable $callback): static
+    {
+        $this->callback = $callback;
 
-	public function getCallback()
-	{
-		return $this->callback;
-	}
+        return $this;
+    }
 
-	public function getSlug()
-	{
-		if ($this->getPath()) {
-			return $this->slug . '&path=' . $this->getPath();
-		}
+    public function getCallback(): callable
+    {
+        return $this->callback;
+    }
 
-		return $this->slug;
-	}
+    public function getSlug(): string
+    {
+        if ($this->getPath()) {
+            return $this->slug . '&path=' . $this->getPath();
+        }
+
+        return $this->slug;
+    }
 }

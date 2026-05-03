@@ -1,23 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Http;
 
 use Omega\Validator\Validator;
+use WP_REST_Request;
 
+use function strtolower;
 
-defined( 'ABSPATH' ) || exit;
+class FormRequest extends Validator
+{
+    /**
+     * Validator constructor
+     *
+     * @param WP_REST_Request $request
+     */
+    public function __construct(WP_REST_Request $request)
+    {
+        $this->data = $request->get_params();
+    }
 
-class FormRequest extends Validator {
-	/**
-	 * Validator constructor
-	 * 
-	 * @param \WP_REST_Request $request
-	 */
-	public function __construct( $request ) {
-		$this->data = $request->get_params();
-	}
-
-	public function isMethod( $method ) {
-		return strtolower( $method ) === strtolower( $_SERVER['REQUEST_METHOD'] );
-	}
+    public function isMethod(string $method): bool
+    {
+        return strtolower($method) === strtolower($_SERVER['REQUEST_METHOD']);
+    }
 }

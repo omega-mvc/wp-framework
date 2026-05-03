@@ -6,5 +6,5 @@ namespace Omega\Facade;
 
 interface FacadeInterface
 {
-    public static function getFacadeAccessor();
+    public static function getFacadeAccessor(): string;
 }

@@ -1,50 +1,56 @@
 <?php
 
+declare(strict_types=1);
 namespace Omega\Routing;
 
 use Omega\Container\ServiceProvider;
+use function add_action;
+use function file_exists;
 
-defined( 'ABSPATH' ) || exit;
+class RouterServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $this->app->singleton('router', function ($app) {
+            return new RouterBuilder($app);
+        });
+    }
 
-class RouterServiceProvider extends ServiceProvider {
-	public function register() {
-		$this->app->singleton( 'router', function ($app) {
-			return new RouterBuilder( $app );
-		} );
-	}
+    public function boot(): void
+    {
+        add_action('rest_api_init', [$this, 'registerRestRoutes']);
+        add_action('admin_menu', [$this, 'registerAdminRoutes'], 99);
+    }
 
-	public function boot() {
-		add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
-		add_action( 'admin_menu', [ $this, 'register_admin_routes' ], 99 );
-	}
+    public function registerRestRoutes(): void
+    {
+        $apiRoutesPath = $this->app->getBasePath() . '/routes/api.php';
 
-	public function register_rest_routes() {
-		$apiRoutesPath = $this->app->getBasePath() . '/routes/api.php';
+        $routes = [
+            $apiRoutesPath,
+            ...$this->app->getRestRouteFiles()
+        ];
 
-		$routes = [ 
-			$apiRoutesPath,
-			...$this->app->getRestRouteFiles()
-		];
+        foreach ($routes as $routeFile) {
+            if (file_exists($routeFile)) {
+                require_once $routeFile;
+            }
+        }
+    }
 
-		foreach ( $routes as $routeFile ) {
-			if ( file_exists( $routeFile ) ) {
-				require_once $routeFile;
-			}
-		}
-	}
+    public function registerAdminRoutes(): void
+    {
+        $adminRoutesPath = $this->app->getBasePath() . '/routes/admin.php';
 
-	public function register_admin_routes() {
-		$adminRoutesPath = $this->app->getBasePath() . '/routes/admin.php';
+        $routes = [
+            $adminRoutesPath,
+            ...$this->app->getAdminRouteFiles()
+        ];
 
-		$routes = [ 
-			$adminRoutesPath,
-			...$this->app->getAdminRouteFiles()
-		];
-
-		foreach ( $routes as $routeFile ) {
-			if ( file_exists( $routeFile ) ) {
-				require_once $routeFile;
-			}
-		}
-	}
+        foreach ($routes as $routeFile) {
+            if (file_exists($routeFile)) {
+                require_once $routeFile;
+            }
+        }
+    }
 }

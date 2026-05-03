@@ -1,17 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Http;
 
-defined('ABSPATH') || exit;
+use WP_Error;
+use WP_REST_Response;
+
+use function is_wp_error;
+use function rest_ensure_response;
 
 class Response
 {
-    public function json($data = [], $status = 200, $headers = [], $options = 0)
+    public function json(array $data = [], int $status = 200, array $headers = [], int $options = 0): WP_Error|WP_REST_Response
     {
         if ($status >= 400) {
-            return new \WP_Error(
+            return new WP_Error(
                 $status,
-                isset($data['message']) ? $data['message'] : (isset($data['error']) ? $data['error'] : 'Error'),
+                $data['message'] ?? ($data['error'] ?? 'Error'),
                 ['status' => $status]
             );
         }

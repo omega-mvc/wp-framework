@@ -3,28 +3,26 @@
 namespace Omega\Routing\Facade;
 
 use Omega\Facade\AbstractFacade;
+use Omega\Routing\Router;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @method static \Omega\Routing\Router get(string $uri, array|string|callable|null $action = null)
- * @method static \Omega\Routing\Router post(string $uri, array|string|callable|null $action = null)
- * @method static \Omega\Routing\Router put(string $uri, array|string|callable|null $action = null)
- * @method static \Omega\Routing\Router delete(string $uri, array|string|callable|null $action = null)
- * @method static \Omega\Routing\Router patch(string $uri, array|string|callable|null $action = null)
- * @method static \Omega\Routing\Router prefix(string $prefix)
- * @method static \Omega\Routing\Router guards(array $guards)
- * @method static \Omega\Routing\Router page(string $id, $options = [])
+ * @method static Router get(string $uri, array|string|callable|null $action = null)
+ * @method static Router post(string $uri, array|string|callable|null $action = null)
+ * @method static Router put(string $uri, array|string|callable|null $action = null)
+ * @method static Router delete(string $uri, array|string|callable|null $action = null)
+ * @method static Router patch(string $uri, array|string|callable|null $action = null)
+ * @method static Router prefix(string $prefix)
+ * @method static Router guards(array $guards)
+ * @method static Router page(string $id, $options = [])
  *
- * @see \Omega\Routing\Router
+ * @see Router
  */
-class Route extends AbstractFacade {
-	/**
-	 * Get the registered name of the component.
-	 *
-	 * @return string
-	 */
-	public static function getFacadeAccessor() {
-		return 'router';
-	}
+class Route extends AbstractFacade
+{
+    public static function getFacadeAccessor(): string
+    {
+        return 'router';
+    }
 }

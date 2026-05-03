@@ -1,117 +1,108 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Http\Json;
 
 use Omega\Collection\Collection;
 use Omega\Paginator\Paginator;
 
-defined( 'ABSPATH' ) || exit;
+use function array_merge;
 
-class ResourceCollection {
+class ResourceCollection
+{
+    /** @var string|null The resource that this resource collects. */
+    public ?string $collects = null;
 
-	/**
-	 * The resource that this resource collects.
-	 *
-	 * @var string|null
-	 */
-	public $collects = null;
+    /** @var Collection The collection of resources. */
+    public Collection $collection;
 
-	/**
-	 * The collection of resources.
-	 *
-	 * @var Collection
-	 */
-	public $collection;
+    /** @var array Additional metadata for the resource collection. */
+    protected array $meta = [];
 
-	/**
-	 * Additional metadata for the resource collection.
-	 *
-	 * @var array
-	 */
-	protected $meta = [];
+    /** @var bool If true, meta attributes will be merged at the top level of the array. */
+    public bool $mergeMeta = false;
 
-	/**
-	 * If true, meta attributes will be merged at the top level of the array.
-	 *
-	 * @var bool
-	 */
-	public $mergeMeta = false;
+    /**
+     * Constructs a new resource collection.
+     *
+     * @param Collection|Paginator $collection
+     * @param string|null          $collects
+     * @param array                $options
+     */
+    public function __construct(Collection|Paginator $collection, ?string $collects = null, array $options = [])
+    {
+        if ($collects)
+            $this->collects = $collects;
 
-	/**
-	 * Constructs a new resource collection.
-	 *
-	 * @param Collection|Paginator $collection 
-	 */
-	public function __construct( $collection, $collects = null, $options = [] ) {
+        if ($collection instanceof Paginator) {
+            $this->collection = $collection->getCollection();
+            $this->meta = $collection->getAttributes();
+            $this->mergeMeta = $options['mergeMeta'] ?? true;
+        } else {
+            $this->collection = $collection;
+        }
 
-		if ( $collects )
-			$this->collects = $collects;
+        if (isset($options['mergeMeta']) && is_bool($options['mergeMeta'])) {
+            $this->mergeMeta = $options['mergeMeta'];
+        }
+    }
 
-		if ( $collection instanceof Paginator ) {
-			$this->collection = $collection->getCollection();
-			$this->meta = $collection->getAttributes();
-			$this->mergeMeta = isset( $options['mergeMeta'] ) ? $options['mergeMeta'] : true;
-		} else {
-			$this->collection = $collection;
-		}
+    /**
+     * Get the collection of resources.
+     *
+     * @return array
+     */
+    public function collection(): array
+    {
+        if ($this->collects) {
+            $resourceClass = $this->collects;
+            $resources = $this->collection->map(function ($item) use ($resourceClass) {
+                return new $resourceClass($item)->toArray();
+            });
+        } else {
+            $resources = $this->collection->toArray();
+        }
 
-		if ( isset( $options['mergeMeta'] ) && is_bool( $options['mergeMeta'] ) ) {
-			$this->mergeMeta = $options['mergeMeta'];
-		}
-	}
+        return $resources;
+    }
 
-	/**
-	 * Get the collection of resources.
-	 *
-	 * @return array
-	 */
-	public function collection() {
-		if ( $this->collects ) {
-			$resourceClass = $this->collects;
-			$resources = $this->collection->map( function ($item) use ($resourceClass) {
-				return ( new $resourceClass( $item ) )->toArray();
-			} );
-		} else {
-			$resources = $this->collection->toArray();
-		}
+    public function getMeta()
+    {
+        return $this->meta;
+    }
 
-		return $resources;
-	}
+    public function appendMeta($data)
+    {
+        if (!empty($this->meta)) {
+            if ($this->mergeMeta) {
+                $data = array_merge($data, $this->meta);
+            } else {
+                $data['meta'] = $this->meta;
+            }
+        }
 
-	public function getMeta() {
-		return $this->meta;
-	}
+        return $data;
+    }
 
-	public function appendMeta( $data ) {
-		if ( ! empty( $this->meta ) ) {
-			if ( $this->mergeMeta ) {
-				$data = array_merge( $data, $this->meta );
-			} else {
-				$data['meta'] = $this->meta;
-			}
-		}
+    /**
+     * Transform the resource collection into an array.
+     *
+     * @return array
+     */
+    public function toArray(): array
+    {
+        return $this->appendMeta([
+            'data' => $this->collection(),
+        ]);
+    }
 
-		return $data;
-	}
+    public function __get($name)
+    {
+        if ($this->resource->keyExists($name)) {
+            return $this->resource[$name];
+        }
 
-	/**
-	 * Transform the resource collection into an array.
-	 *
-	 * @return array
-	 */
-	public function toArray() {
-		$data = $this->appendMeta( [ 
-			'data' => $this->collection(),
-		] );
-
-		return $data;
-	}
-
-	public function __get( $name ) {
-		if ( $this->resource->keyExists( $name ) ) {
-			return $this->resource[ $name ];
-		}
-
-		return null;
-	}
+        return null;
+    }
 }

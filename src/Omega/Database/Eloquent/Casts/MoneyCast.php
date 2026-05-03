@@ -1,16 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Database\Eloquent\Casts;
 
+use Omega\Database\Eloquent\AbstractModel;
 use Omega\Database\Eloquent\CastsAttributesInterface;
 
-class MoneyCast implements CastsAttributesInterface {
+use function round;
 
-	public function get( $model, string $key, $value, array $attributes ) {
-		return $value / 100;
-	}
+class MoneyCast implements CastsAttributesInterface
+{
+    public function get(AbstractModel $model, string $key, mixed $value, array $attributes): mixed
+    {
+        return $value / 100;
+    }
 
-	public function set( $model, string $key, $value, array $attributes ) {
-		return (int) round( $value * 100 );
-	}
+    public function set(AbstractModel $model, string $key, mixed $value, array $attributes): mixed
+    {
+        return (int)round($value * 100);
+    }
 }

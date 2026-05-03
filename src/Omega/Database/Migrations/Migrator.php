@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Omega\Database\Migrations;
 
 use Omega\Application\Application;
@@ -6,130 +9,144 @@ use Omega\Database\Database;
 use Omega\Database\Schema\Blueprint;
 use Omega\Database\Schema\Schema;
 
-defined( 'ABSPATH' ) || exit;
-class Migrator {
-	/**
-	 * The id of the migration.
-	 *
-	 * @var string
-	 */
-	protected $prefix;
+use function array_merge;
+use function basename;
+use function current_time;
+use function file_exists;
+use function get_option;
+use function glob;
+use function in_array;
+use function method_exists;
 
-	protected $path;
+class Migrator
+{
+    /**
+     * The id of the migration.
+     *
+     * @var string|array
+     */
+    protected string|array $prefix;
 
-	/**
-	 * The application instance.
-	 *
-	 * @var Application
-	 */
-	protected $app;
+    protected string $path;
+
+    /**
+     * The application instance.
+     *
+     * @var Application
+     */
+    protected Application $app;
 
 
-	protected $tableName;
+    protected string $tableName;
 
-	protected $oldVersion;
+    protected mixed $oldVersion;
 
-	public function __construct( Application $app ) {
-		$this->app = $app;
-		$this->prefix = $app->getIdAsUnderscore();
-		$this->path = $app->getBasePath();
-		$this->tableName = "{$this->prefix}_migrations";
-		$this->oldVersion = get_option( "{$this->prefix}_version", $app->version() );
-	}
+    public function __construct(Application $app)
+    {
+        $this->app = $app;
+        $this->prefix = $app->getIdAsUnderscore();
+        $this->path = $app->getBasePath();
+        $this->tableName = "{$this->prefix}_migrations";
+        $this->oldVersion = get_option("{$this->prefix}_version", $app->version());
+    }
 
-	public function maybeCreateMigrationsTable() {
-		if ( Database::tableExists( $this->tableName ) ) {
-			return;
-		}
+    public function maybeCreateMigrationsTable(): void
+    {
+        if (Database::tableExists($this->tableName)) {
+            return;
+        }
 
-		Schema::create( $this->tableName, function ( Blueprint $table ) {
-			$table->id( 'id' );
-			$table->string( 'name' );
-			$table->string( 'file' );
-			$table->timestamps();
-		} );
-	}
+        Schema::create($this->tableName, function (Blueprint $table) {
+            $table->id('id');
+            $table->string('name');
+            $table->string('file');
+            $table->timestamps();
+        });
+    }
 
-	public function processMigrationFile( string $file ) {
-		/** @var Migration $migration */
-		$migration = require $file;
+    public function processMigrationFile(string $file): bool
+    {
+        /** @var AbstractMigration $migration */
+        $migration = require $file;
 
-		if ( method_exists( $migration, 'up' ) ) {
-			$migration->setOldVersion( $this->oldVersion );
-			$migration->up();
-			return true;
-		}
+        if (method_exists($migration, 'up')) {
+            $migration->setOldVersion($this->oldVersion);
+            $migration->up();
+            return true;
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	public function run() {
-		$files = glob( "{$this->path}/database/migrations/*.php" );
+    public function run()
+    {
+        $files = glob("$this->path/database/migrations/*.php");
 
-		if ( ! empty( $this->app->getMigrationFolders() ) && is_array( $this->app->getMigrationFolders() ) ) {
-			foreach ( $this->app->getMigrationFolders() as $folder ) {
-				$extraFiles = glob( "{$folder}/*.php" );
-				if ( $extraFiles ) {
-					$files = array_merge( $files, $extraFiles );
-				}
-			}
-		}
+        if (!empty($this->app->getMigrationFolders()) && is_array($this->app->getMigrationFolders())) {
+            foreach ($this->app->getMigrationFolders() as $folder) {
+                $extraFiles = glob("$folder/*.php");
+                if ($extraFiles) {
+                    $files = array_merge($files, $extraFiles);
+                }
+            }
+        }
 
-		if ( ! $files ) {
-			return;
-		}
+        if (!$files) {
+            return;
+        }
 
-		$this->maybeCreateMigrationsTable();
+        $this->maybeCreateMigrationsTable();
 
-		$model = Database::table( $this->tableName );
+        $model = Database::table($this->tableName);
 
-		$migrations = $model->select( 'name' )->get()->pluck( 'name' )->toArray();
-		$applied = [];
+        $migrations = $model->select('name')->get()->pluck('name')->toArray();
+        $applied = [];
 
-		foreach ( $files as $file ) {
-			$migration_id = basename( $file, '.php' );
+        foreach ($files as $file) {
+            $migrationId = basename($file, '.php');
 
-			if ( in_array( $migration_id, $migrations, true ) ) {
-				continue;
-			}
+            if (in_array($migrationId, $migrations, true)) {
+                continue;
+            }
 
-			$migrated = $this->processMigrationFile( $file );
+            $migrated = $this->processMigrationFile($file);
 
-			if ( $migrated ) {
-				$migrations[] = $migration_id;
-				$applied[] = $migration_id;
+            if ($migrated) {
+                $migrations[] = $migrationId;
+                $applied[]    = $migrationId;
 
-				Database::insert( Database::getTableName( $this->tableName ), [
-					'name' => $migration_id,
-					'file' => $file,
-					'created_at' => current_time( 'mysql' ),
-					'updated_at' => current_time( 'mysql' ),
-				] );
-			}
-		}
+                Database::insert(Database::getTableName($this->tableName), [
+                    'name'       => $migrationId,
+                    'file'       => $file,
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql'),
+                ]);
+            }
+        }
 
-		return $applied;
-	}
+        return $applied;
+    }
 
-	public function fresh() {
-		$model = Database::table( $this->tableName );
+    public function fresh(): ?array
+    {
+        $model = Database::table($this->tableName);
 
-		$migrations = $model->get();
+        $migrations = $model->get();
 
-		if ( ! $migrations->isEmpty() ) {
-			foreach ( $migrations as $mg ) {
-				if ( file_exists( $mg->file ) ) {
-					$migration = require_once $mg->file;
+        if (!$migrations->isEmpty()) {
+            foreach ($migrations as $mg) {
+                if (file_exists($mg->file)) {
+                    $migration = require_once $mg->file;
 
-					if ( method_exists( $migration, 'down' ) ) {
-						$migration->down();
-						$success[] = $mg->name;
-						$model->where( [ 'id' => $mg->id ] )->delete();
-					}
-				}
-			}
-		}
+                    if (method_exists($migration, 'down')) {
+                        $migration->down();
+                        $success[] = $mg->name;
+                        $model->where(['id' => $mg->id])->delete();
+                    }
+                }
+            }
+        }
 
-		return $this->run();
-	}
+        return $this->run();
+    }
 }

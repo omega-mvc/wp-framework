@@ -1,100 +1,90 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Database\Eloquent\Casts;
 
+final class Attribute
+{
+    /** @var callable The attribute accessor. */
+    public mixed $get;
 
-defined( 'ABSPATH' ) || exit;
+    /** @var callable The attribute mutator. */
+    public mixed $set;
 
-class Attribute {
-	/**
-	 * The attribute accessor.
-	 *
-	 * @var callable
-	 */
-	public $get;
+    /** @var bool Indicates if caching is enabled for this attribute. */
+    public bool $withCaching = false;
 
-	/**
-	 * The attribute mutator.
-	 *
-	 * @var callable
-	 */
-	public $set;
+    /** @var bool Indicates if caching of objects is enabled for this attribute. */
+    public bool $withObjectCaching = true;
 
-	/**
-	 * Indicates if caching is enabled for this attribute.
-	 *
-	 * @var bool
-	 */
-	public $withCaching = false;
+    /**
+     * Create a new attribute accessor / mutator.
+     *
+     * @param callable|null $get
+     * @param callable|null $set
+     */
+    public function __construct(?callable $get = null, ?callable $set = null)
+    {
+        $this->get = $get;
+        $this->set = $set;
+    }
 
-	/**
-	 * Indicates if caching of objects is enabled for this attribute.
-	 *
-	 * @var bool
-	 */
-	public $withObjectCaching = true;
+    /**
+     * Create a new attribute accessor / mutator.
+     *
+     * @param callable|null $get
+     * @param callable|null $set
+     * @return static
+     */
+    public static function make(?callable $get = null, ?callable $set = null): static
+    {
+        return new static($get, $set);
+    }
 
-	/**
-	 * Create a new attribute accessor / mutator.
-	 *
-	 * @param  callable|null  $get
-	 * @param  callable|null  $set
-	 */
-	public function __construct( ?callable $get = null, ?callable $set = null ) {
-		$this->get = $get;
-		$this->set = $set;
-	}
+    /**
+     * Create a new attribute accessor.
+     *
+     * @param callable $get
+     * @return static
+     */
+    public static function get(callable $get): static
+    {
+        return new static($get);
+    }
 
-	/**
-	 * Create a new attribute accessor / mutator.
-	 *
-	 * @param  callable|null  $get
-	 * @param  callable|null  $set
-	 * @return static
-	 */
-	public static function make( ?callable $get = null, ?callable $set = null ) {
-		return new static( $get, $set );
-	}
+    /**
+     * Create a new attribute mutator.
+     *
+     * @param callable $set
+     * @return static
+     */
+    public static function set(callable $set): static
+    {
+        return new static(null, $set);
+    }
 
-	/**
-	 * Create a new attribute accessor.
-	 *
-	 * @param  callable  $get
-	 * @return static
-	 */
-	public static function get( callable $get ) {
-		return new static( $get );
-	}
+    /**
+     * Disable object caching for the attribute.
+     *
+     * @return static
+     */
+    public function withoutObjectCaching(): static
+    {
+        $this->withObjectCaching = false;
 
-	/**
-	 * Create a new attribute mutator.
-	 *
-	 * @param  callable  $set
-	 * @return static
-	 */
-	public static function set( callable $set ) {
-		return new static( null, $set );
-	}
+        return $this;
+    }
 
-	/**
-	 * Disable object caching for the attribute.
-	 *
-	 * @return static
-	 */
-	public function withoutObjectCaching() {
-		$this->withObjectCaching = false;
+    /**
+     * Enable caching for the attribute.
+     *
+     * @return static
+     */
+    public function shouldCache(): static
+    {
+        $this->withCaching = true;
 
-		return $this;
-	}
-
-	/**
-	 * Enable caching for the attribute.
-	 *
-	 * @return static
-	 */
-	public function shouldCache() {
-		$this->withCaching = true;
-
-		return $this;
-	}
+        return $this;
+    }
 }

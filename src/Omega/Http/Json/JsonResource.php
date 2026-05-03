@@ -2,7 +2,7 @@
 
 namespace Omega\Http\Json;
 
-use Omega\Database\Eloquent\Model;
+use Omega\Database\Eloquent\AbstractModel;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -11,7 +11,7 @@ class JsonResource {
 	/**
 	 * The resource instance.
 	 *
-	 * @var Model
+	 * @var AbstractModel
 	 */
 	public $resource;
 
@@ -25,7 +25,7 @@ class JsonResource {
 	/**
 	 * Create a new resource instance.
 	 *
-	 * @param  Model  $resource
+	 * @param  AbstractModel  $resource
 	 */
 	public function __construct( $resource, $options = [] ) {
 		$this->resource = $resource;

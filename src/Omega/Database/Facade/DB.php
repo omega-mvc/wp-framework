@@ -1,20 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Database\Facade;
 
+use Omega\Database\Database;
+use Omega\Database\Eloquent\QueryBuilder;
+use Omega\Database\Migrations\Migrator;
 use Omega\Facade\AbstractFacade;
 
-defined( 'ABSPATH' ) || exit;
-
 /**
- * @method static \Omega\Database\Migrations\Migrator migrator()
- * @method static \Omega\Database\Eloquent\QueryBuilder table( string $table )
+ * @method static Migrator migrator()
+ * @method static QueryBuilder table(string $table)
  *
- * @see \Omega\Database\Database
+ * @see Database
  */
-class DB extends AbstractFacade {
-
-	public static function getFacadeAccessor() {
+class DB extends AbstractFacade
+{
+	public static function getFacadeAccessor(): string
+    {
 		return 'database';
 	}
 }

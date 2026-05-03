@@ -5,7 +5,7 @@ namespace Omega\Collection;
 use ArrayAccess;
 use ArrayIterator;
 use IteratorAggregate;
-use Omega\Database\Eloquent\Model;
+use Omega\Database\Eloquent\AbstractModel;
 use ReturnTypeWillChange;
 
 use function array_combine;
@@ -105,7 +105,7 @@ class Collection implements ArrayAccess, IteratorAggregate
         $items = [];
 
         foreach ($this->items as $key => $item) {
-            if ($item instanceof Model) {
+            if ($item instanceof AbstractModel) {
                 $items[$key] = $item->toArray();
             } else {
                 $items[$key] = $item;

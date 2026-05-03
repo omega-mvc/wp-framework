@@ -1,236 +1,239 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Omega\Database;
 
 use Omega\Application\Application;
-use Omega\Database\Migrations\Migrate;
-use Omega\Omega;
-use Omega\Support\Container;
+use Omega\Database\Eloquent\QueryBuilder;
+use Omega\Database\Migrations\Migrator;
+use ReflectionException;
+use wpdb;
 
-defined( 'ABSPATH' ) || exit;
+use function array_fill;
+use function array_keys;
+use function array_map;
+use function count;
+use function implode;
+use function sprintf;
 
 /**
  * Database class
  * 
  * This class is responsible for handling all database operations
- * 
- * @since 1.0.0
  */
-class Database {
+class Database
+{
+    /** @var wpdb Wordpress database object. */
+    protected wpdb $wpdb;
 
-	/**
-	 * Wordpress database object
-	 *
-	 * @var \wpdb
-	 */
-	protected $wpdb;
+    /** @var Migrator The migrator instance. */
+    protected Migrator $migrator;
 
-	/**
-	 * The migrator instance.
-	 *
-	 * @var \Omega\Database\Migrations\Migrator
-	 */
-	protected $migrator;
+    /**
+     * Class constructor.
+     *
+     * @param Application $app
+     * @return void
+     * @throws ReflectionException
+     */
+    public function __construct(Application $app)
+    {
+        global $wpdb;
 
-	public function __construct( Application $app ) {
-		global $wpdb;
-		$this->wpdb = $wpdb;
-		$this->migrator = $app->make( 'migrator' );
-	}
+        $this->wpdb     = $wpdb;
+        $this->migrator = $app->make('migrator');
+    }
 
-	public function migrator() {
-		return $this->migrator;
-	}
+    public function migrator(): Migrator
+    {
+        return $this->migrator;
+    }
 
-	public static function getTableName( $table_name, $prefix = '' ) {
-		global $wpdb;
-		return sprintf( '%s%s%s', $wpdb->prefix, $prefix, $table_name );
-	}
+    public static function getTableName(string $tableName, string $prefix = ''): string
+    {
+        global $wpdb;
 
-	/**
-	 * Create or update a table in the database
-	 * 
-	 * Useful for creating new tables and updating existing tables to a new structure.
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @param string $table_name
-	 * @param array $columns
-	 * 
-	 * @return void
-	 */
-	public static function createOrUpdateTable( $table_name, $columns ) {
-		global $wpdb;
+        return sprintf('%s%s%s', $wpdb->prefix, $prefix, $tableName);
+    }
 
-		$charset_collate = $wpdb->get_charset_collate();
-		$full_table_name = self::getTableName( $table_name );
+    /**
+     * Create or update a table in the database
+     *
+     * Useful for creating new tables and updating existing tables to a new structure.
+     *
+     * @param string $tableName
+     * @param array  $columns
+     * @return void
+     */
+    public static function createOrUpdateTable(string $tableName, array $columns): void
+    {
+        global $wpdb;
 
-		$generated_columns = array_map( function ($column_name, $column_type) {
-			return "$column_name $column_type";
-		}, array_keys( $columns ), $columns );
+        $charsetCollate = $wpdb->get_charset_collate();
+        $fullTableName  = self::getTableName($tableName);
 
-		$sql = "CREATE TABLE $full_table_name (
+        $generatedColumns = array_map(function ($columnName, $columnType) {
+            return "$columnName $columnType";
+        }, array_keys($columns), $columns);
+
+        $sql = "CREATE TABLE $fullTableName (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-			" . implode( ",\n", $generated_columns ) . ",
+			" . implode(",\n", $generatedColumns) . ",
 			PRIMARY KEY  (id)
-		) $charset_collate;";
+		) $charsetCollate;";
 
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-		dbDelta( $sql );
-	}
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-
-	public static function tableExists( $tableName ) {
-		global $wpdb;
-
-		$exists = $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $tableName ) );
-
-		return $exists !== null;
-	}
-
-	/**
-	 * Prepare a query
-	 *
-	 * @param string $query
-	 * @param mixed $args
-	 * @return string
-	 */
-	public function prepare( $query, ...$args ) {
-		return $this->wpdb->prepare( $query, $args );
-	}
+        dbDelta($sql);
+    }
 
 
+    public static function tableExists(string $tableName): ?bool
+    {
+        global $wpdb;
 
-	public static function table( $table ) {
-		$model = new DynamicModel( [], self::getTableName( $table ) );
-		return $model->getQueryBuilder();
-	}
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $tableName));
 
-	/**
-	 * Run a query
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @param string $query
-	 * 
-	 * @return bool|int
-	 */
-	public function query( $query ) {
-		return $this->wpdb->query( $query );
-	}
+        return $exists !== null;
+    }
 
-	/**
-	 * Get rows from the database.
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @param string $query
-	 * 
-	 * @return object|null
-	 */
-	public function get_results( $query ) {
-		return $this->wpdb->get_results( $query );
-	}
+    /**
+     * Prepare a query
+     *
+     * @param string $query
+     * @param mixed  $args
+     * @return string
+     */
+    public function prepare(string $query, mixed ...$args): string
+    {
+        return $this->wpdb->prepare($query, $args);
+    }
 
-	/**
-	 * Get a single row from the database.
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @param string $query
-	 * 
-	 * @return string|null
-	 */
-	public function get_var( $query ) {
-		return $this->wpdb->get_var( $query );
-	}
 
-	/**
-	 * Delete row(s) from the database.
-	 *
-	 * @since 1.0.0
-	 * @param string $table
-	 * @param array $where_values
-	 * @param array $where_format
-	 * 
-	 * @return bool|int
-	 */
-	public function delete( $table, $where_values, $where_format = null ) {
-		return $this->wpdb->delete( $table, $where_values, $where_format );
-	}
+    public static function table(string $table): QueryBuilder
+    {
+        $model = new DynamicModel([], self::getTableName($table));
 
-	/**
-	 * Insert data into a table.
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @param string $table
-	 * @param array $data
-	 * 
-	 * @return int|bool
-	 */
-	public static function insert( $table, $data ) {
-		global $wpdb;
-		$inserted = $wpdb->insert( $table, $data );
-		if ( ! $inserted ) {
-			return false;
-		}
-		return $wpdb->insert_id;
-	}
+        return $model->getQueryBuilder();
+    }
 
-	/**
-	 * Update data into a table.
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @param string $table
-	 * @param array $data
-	 * @param array $where_values
-	 * 
-	 * @return int|bool
-	 */
-	public function update( $table, $data, $where_values ) {
-		$updated = $this->wpdb->update( $table, $data, $where_values );
-		if ( ! $updated ) {
-			return false;
-		}
-		return $updated;
-	}
+    /**
+     * Run a query
+     *
+     * @param string $query
+     * @return bool|int
+     */
+    public function query(string $query): bool|int
+    {
+        return $this->wpdb->query($query);
+    }
 
-	/**
-	 * Insert multiple rows into a table.
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @param string $table_name
-	 * @param array $data
-	 * 
-	 * @return bool|int Boolean true for CREATE, ALTER, TRUNCATE and DROP queries. Number of rows
-	 *                  affected/selected for all other queries. Boolean false on error.
-	 */
-	function insert_multiple( $table_name, $data ) {
-		if ( empty( $data ) ) {
-			return false;
-		}
+    /**
+     * Get rows from the database.
+     *
+     * @param string $query
+     * @return object|null
+     */
+    public function getResults(string $query): ?object
+    {
+        return $this->wpdb->get_results($query);
+    }
 
-		$first_item = $data[0];
-		$columns = array_keys( $first_item );
-		$columns_sql = implode( ', ', $columns );
+    /**
+     * Get a single row from the database.
+     *
+     * @param string $query
+     * @return string|null
+     *
+     */
+    public function getVar(string $query): ?string
+    {
+        return $this->wpdb->get_var($query);
+    }
 
-		$values = [];
-		$placeholders = [];
+    /**
+     * Delete row(s) from the database.
+     *
+     * @param string     $table
+     * @param array      $whereValues
+     * @param array|null $whereFormat
+     * @return bool|int
+     */
+    public function delete(string $table, array $whereValues, ?array $whereFormat = null): bool|int
+    {
+        return $this->wpdb->delete($table, $whereValues, $whereFormat);
+    }
 
-		foreach ( $data as $item ) {
-			foreach ( $item as $value ) {
-				$values[] = $value;
-			}
-			$placeholders[] = '(' . implode( ', ', array_fill( 0, count( $item ), '%s' ) ) . ')';
-		}
+    /**
+     * Insert data into a table.
+     *
+     * @param string $table
+     * @param array  $data
+     * @return bool|int
+     */
+    public static function insert(string $table, array $data): bool|int
+    {
+        global $wpdb;
 
-		$values_sql = implode( ', ', $placeholders );
+        $inserted = $wpdb->insert($table, $data);
+        if (!$inserted) {
+            return false;
+        }
 
-		$sql = "INSERT INTO $table_name ($columns_sql) VALUES $values_sql";
+        return $wpdb->insert_id;
+    }
 
-		return $this->wpdb->query( $this->wpdb->prepare( $sql, $values ) );
-	}
+    /**
+     * Update data into a table.
+     *
+     * @param string $table
+     * @param array  $data
+     * @param array  $whereValues
+     * @return bool|int
+     */
+    public function update(string $table, array $data, array $whereValues): bool|int
+    {
+        $updated = $this->wpdb->update($table, $data, $whereValues);
+        if (!$updated) {
+            return false;
+        }
 
+        return $updated;
+    }
+
+    /**
+     * Insert multiple rows into a table.
+     *
+     * @param string $tableName
+     * @param array  $data
+     * @return bool|int Boolean true for CREATE, ALTER, TRUNCATE and DROP queries. Number of rows
+     *                  affected/selected for all other queries. Boolean false on error.
+     */
+    public function insertMultiple(string $tableName, array $data): bool|int
+    {
+        if (empty($data)) {
+            return false;
+        }
+
+        $firstItem    = $data[0];
+        $columns      = array_keys($firstItem);
+        $columnsSql   = implode(', ', $columns);
+        $values       = [];
+        $placeholders = [];
+
+        foreach ($data as $item) {
+            foreach ($item as $value) {
+                $values[] = $value;
+            }
+
+            $placeholders[] = '(' . implode(', ', array_fill(0, count($item), '%s')) . ')';
+        }
+
+        $values_sql = implode(', ', $placeholders);
+
+        $sql = "INSERT INTO $tableName ($columnsSql) VALUES $values_sql";
+
+        return $this->wpdb->query($this->wpdb->prepare($sql, $values));
+    }
 }

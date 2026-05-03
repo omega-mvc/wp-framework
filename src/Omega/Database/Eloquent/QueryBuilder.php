@@ -1,49 +1,54 @@
-<?php
+<?php /** @noinspection PhpUnusedParameterInspection */
+/** @noinspection PhpUnused */
+
+/** @noinspection PhpUnnecessaryCurlyVarSyntaxInspection */
+
+declare(strict_types=1);
 
 namespace Omega\Database\Eloquent;
 
+use Closure;
+use Exception;
 use Omega\Collection\Collection;
 use Omega\Database\Database;
 use Omega\Database\Eloquent\Relations\BelongsTo;
 use Omega\Database\Eloquent\Relations\HasMany;
 use Omega\Database\Eloquent\Relations\HasOne;
-use Omega\Database\Eloquent\Relations\Relation;
+use Omega\Database\Eloquent\Relations\AbstractRelation;
 use Omega\Paginator\Paginator;
+use ReflectionClass;
+use ReflectionException;
+use ReflectionNamedType;
 
-defined( 'ABSPATH' ) || exit;
+use function array_fill;
+use function array_filter;
+use function array_merge;
+use function call_user_func;
+use function count;
+use function current_time;
+use function implode;
+use function is_array;
+use function is_callable;
+use function is_string;
+use function strtoupper;
+use function wp_list_pluck;
 
 /**
  * QueryBuilder class.
- * 
+ *
  * This class is responsible for building database queries.
- * 
- * @since 1.0.0
  */
-class QueryBuilder {
+class QueryBuilder
+{
+	/** @var string Table name. */
+	protected string $tableName;
 
-	/**
-	 * Table name
-	 * 
-	 * @since 1.0.0
-	 * @var string
-	 */
-	protected $table_name;
-
-	/**
-	 * Database instance
-	 * 
-	 * @since 1.0.0
-	 * @var Database
-	 */
-	protected $db;
+	/** @var Database Database instance. */
+	protected Database $db;
 
 	/**
 	 * Where array
-	 * 
-	 * @since 1.0.0
-	 * 
-	 * @updated 1.0.3
-	 * 
+     *
 	 * @var array{
 	 * 		column: string,
 	 * 		value: mixed,
@@ -52,25 +57,21 @@ class QueryBuilder {
 	 * 		table: string
 	 * }
 	 */
-	protected $whereArray = [];
+	protected array $whereArray = [];
 
 	/**
 	 * Exists array
-	 * 
-	 * @since 1.0.0
-	 * 
+     *
 	 * @var array{
 	 * 		sql: string,
 	 * 		method: string
 	 * }
 	 */
-	protected $existsArray = [];
+	protected array $existsArray = [];
 
 	/**
 	 * Where column array
-	 * 
-	 * @since 1.0.3
-	 * 
+     *
 	 * @var array{
 	 * 		column_one: string,
 	 * 		operator: string,
@@ -78,406 +79,440 @@ class QueryBuilder {
 	 * 		method: string
 	 * }
 	 */
-	protected $whereColumnArray = [];
+	protected array $whereColumnArray = [];
 
-	protected $joinArray = [];
+    /** @var array @var array Join array. */
+	protected array $joinArray = [];
 
-	protected $groupBy = [];
+    /** @var array Group by array. */
+	protected array $groupBy = [];
 
 	/**
 	 * With array
-	 * 
-	 * @since 1.0.2
-	 * 
+     *
 	 * @var array{
 	 * 		@type string $relation,
 	 * 		@type string $table,
 	 * 		@type string $foreign_key,
 	 * 		@type string $local_key,
-	 * 		@type \Omega\Model $model,
-	 * 		@type Relation $relation_type
+     *      @type AbstractModel $model ,
+	 * 		@type AbstractRelation $relation_type
 	 * }
 	 */
-	protected $withArray = [];
+	protected array $withArray = [];
 
-	protected $orderBy = [];
+    /** @var array Order by array. */
+	protected array $orderBy = [];
 
-	private $select = '*';
+    /** @var string  */
+	private string $select = '*';
 
-	/**
-	 * Limit
-	 * 
-	 * @since 1.0.0
-	 * @var int
-	 */
-	private $limit;
+	/** @var int Limit. */
+	private int $limit;
 
-	/**
-	 * Offset
-	 * 
-	 * @since 1.0.0
-	 * @var int
-	 */
-	private $offset;
+	/** @var int Offset. */
+	private int $offset;
 
-	/**
-	 * Model instance
-	 * 
-	 * @since 1.0.0
-	 * @var Model
-	 */
-	protected $model;
+    public function __construct(protected AbstractModel $model)
+    {
+		$this->db        = $model->getDatabase();
+		$this->tableName = $model->getTableName();
 
-	public function __construct( Model $model ) {
-		$this->db = $model->getDatabase();
-		$this->table_name = $model->getTableName();
-		$this->model = $model;
-		if ( $model->trashed() ) {
-			$this->whereArray[] = [ 'column' => 'deleted_at', 'value' => '!#####NULL#####!', 'operator' => 'IS' ];
+		if ($model->trashed()) {
+			$this->whereArray[] = ['column' => 'deleted_at', 'value' => '!#####NULL#####!', 'operator' => 'IS'];
 		}
 	}
 
 	/**
 	 * Select columns
-	 * 
-	 * @since 1.0.0
-	 * 
-	 * @param string|array $columns
-	 * 
+     *
+	 * @param array|string $columns
 	 * @return QueryBuilder
 	 */
-	public function select( $columns ) {
-		$this->select = is_array( $columns ) ? implode( ', ', $columns ) : $columns;
-		return $this;
+	public function select(array|string $columns): QueryBuilder
+    {
+		$this->select = is_array($columns)
+            ? implode(', ', $columns)
+            : $columns;
+
+        return $this;
 	}
 
-	public function find( $id ) {
-		return $this->where( $this->model->primaryKey, $id )->first();
-	}
+	public function find($id): ?AbstractModel
+    {
+        return $this->where($this->model->primaryKey, $id)->first();
+    }
 
-	public function whereNull( $column ) {
-		$this->where( $column, 'IS', '!#####NULL#####!' );
-		return $this;
-	}
+	public function whereNull(string $column): static
+    {
+        $this->where($column, 'IS', '!#####NULL#####!');
 
-	public function whereNotNull( $column ) {
-		$this->where( $column, 'IS NOT', '!#####NULL#####!' );
-		return $this;
-	}
+        return $this;
+    }
 
-
-	public function whereDoesntHave( $relation, $callback ) {
-		$reflection = new \ReflectionClass( $this->model );
-
-		$method = $reflection->getMethod( $relation );
-
-		/** @var Relation $relation */
-		$relation = $method->invoke( $this->model );
-		$related_class = $relation->getRelatedClass();
-
-		$query = $related_class::query();
-
-		if ( $relation instanceof HasMany ) {
-			$query->whereColumn( $relation->getForeignKey(), $this->model->getTableName() . '.' . $relation->getLocalKey() );
-		} elseif ( $relation instanceof BelongsTo ) {
-			$query->whereColumn( $relation->getLocalKey(), $this->model->getTableName() . '.' . $relation->getForeignKey() );
-		}
-
-		if ( is_callable( $callback ) ) {
-			call_user_func( $callback, $query );
-		}
-
-		$sql = $query->generateQuery();
-
-		$this->existsArray[] = [
-			'sql' => $sql,
-			'method' => 'AND',
-			'not' => true,
-		];
+	public function whereNotNull(string $column): static
+    {
+		$this->where($column, 'IS NOT', '!#####NULL#####!');
 
 		return $this;
-	}
+    }
 
-	public function whereRaw( $sql, $bindings = [], $boolean = 'AND' ) {
+
+    /**
+     * @param string   $relation
+     * @param callable $callback
+     * @return static
+     * @throws ReflectionException
+     */
+    public function whereDoesntHave(string $relation, callable $callback): static
+    {
+        $reflection    = new ReflectionClass($this->model);
+        $method        = $reflection->getMethod($relation);
+        /** @var AbstractRelation $relation */
+        $relation      = $method->invoke($this->model);
+        $relatedClass  = $relation->getRelatedClass();
+        $query         = $relatedClass::query();
+
+        if ($relation instanceof HasMany) {
+            $query->whereColumn(
+                $relation->getForeignKey(),
+                $this->model->getTableName()
+                . '.'
+                . $relation->getLocalKey()
+            );
+        } elseif ($relation instanceof BelongsTo) {
+            $query->whereColumn(
+                $relation->getLocalKey(),
+                $this->model->getTableName()
+                . '.'
+                . $relation->getForeignKey()
+            );
+        }
+
+        if (is_callable($callback)) {
+            call_user_func($callback, $query);
+        }
+
+        $sql = $query->generateQuery();
+
+        $this->existsArray[] = [
+            'sql'    => $sql,
+            'method' => 'AND',
+            'not'    => true,
+        ];
+
+        return $this;
+    }
+
+	public function whereRaw(string $sql, array $bindings = [], string $boolean = 'AND' ): static
+    {
 		$this->whereArray[] = [
-			'type' => 'Raw',
-			'sql' => $sql,
+			'type'     => 'Raw',
+			'sql'      => $sql,
 			'bindings' => $bindings,
-			'method' => $boolean
+			'method'   => $boolean
 		];
 
 		return $this;
 	}
 
-	public function orWhereRaw( $sql, $bindings = [] ) {
-		return $this->whereRaw( $sql, $bindings, 'OR' );
+	public function orWhereRaw(string $sql, array $bindings = []): static
+    {
+		return $this->whereRaw($sql, $bindings, 'OR');
 	}
 
-	/**
-	 * Add a basic where clause to the query.
-	 * 
-	 * @since 1.0.0
-	 * 
-	 * @param mixed $column Column name
-	 * @param mixed $operator Value or Operator
-	 * @param mixed $value Valor or null
-	 * 
-	 * @return QueryBuilder
-	 */
-	public function where( $column, $operator = null, $value = null, $method = null, $table = null ) {
-		if ( is_array( $column ) ) {
-			foreach ( $column as $col => $val ) {
-				$this->where( $col, $val );
-			}
-			return $this;
-		}
+    /**
+     * Add a basic where clause to the query.
+     *
+     * @param mixed|null $column Column name
+     * @param mixed|null $operator Value or Operator
+     * @param mixed|null $value Valor or null
+     * @param mixed|null $method
+     * @param mixed|null $table
+     * @return QueryBuilder
+     */
+	public function where(
+        mixed $column,
+        mixed $operator = null,
+        mixed $value = null,
+        mixed $method = null,
+        mixed $table = null
+    ): static
+    {
+        if (is_array($column)) {
+            foreach ($column as $col => $val) {
+                $this->where($col, $val);
+            }
+            return $this;
+        }
 
-		if ( $column instanceof \Closure ) {
-			$this->whereArray[] = [
-				'type' => 'Nested',
-				'callback' => $column,
-				'method' => $method ?? 'AND'
-			];
-			return $this;
-		}
+        if ($column instanceof Closure) {
+            $this->whereArray[] = [
+                'type'     => 'Nested',
+                'callback' => $column,
+                'method'   => $method ?? 'AND'
+            ];
+            return $this;
+        }
 
-		$where = [
-			'column' => $column,
-			'value' => $value ?? $operator,
-			'operator' => isset( $value ) ? $operator : '='
-		];
+        $where = [
+            'column'   => $column,
+            'value'    => $value ?? $operator,
+            'operator' => isset($value) ? $operator : '='
+        ];
 
-		if ( $method ) {
-			$where['method'] = $method;
-		}
+        if ($method) {
+            $where['method'] = $method;
+        }
 
-		if ( $table ) {
-			$where['table'] = $table;
-		}
+        if ($table) {
+            $where['table'] = $table;
+        }
 
-		$this->whereArray[] = $where;
+        $this->whereArray[] = $where;
 
-		return $this;
-	}
+        return $this;
+    }
 
 	/**
 	 * Add an "or where" clause to the query.
-	 * 
-	 * @since 1.0.4
-	 * 
-	 * @param mixed $column
+     *
+     * @param mixed $column
 	 * @param mixed $operator
 	 * @param mixed $value
-	 * 
 	 * @return QueryBuilder
 	 */
-	public function orWhere( $column, $operator = null, $value = null ) {
-		if ( is_array( $column ) ) {
-			foreach ( $column as $col => $val ) {
-				$this->orWhere( $col, $val );
-			}
-			return $this;
-		}
+	public function orWhere(mixed $column, mixed $operator = null, mixed $value = null ): QueryBuilder
+    {
+        if (is_array($column)) {
+            foreach ($column as $col => $val) {
+                $this->orWhere($col, $val);
+            }
+            return $this;
+        }
 
-		return $this->where( $column, $operator, $value, 'OR' );
-	}
+        return $this->where($column, $operator, $value, 'OR');
+    }
 
-	/**
-	 * Where has relation
-	 * 
-	 * @param string $relation
-	 * @param callable(QueryBuilder $query)|null $callback
-	 * 
-	 * @return QueryBuilder
-	 */
-	public function whereHas( $relation, $callback = null ) {
-		$reflection = new \ReflectionClass( $this->model );
+    /**
+     * Where has relation
+     *
+     * @param string $relation
+     * @param callable|null $callback
+     * @return QueryBuilder
+     * @throws ReflectionException
+     */
+	public function whereHas(string $relation, ?callable $callback = null): QueryBuilder
+    {
+        $reflection   = new ReflectionClass($this->model);
+        $method       = $reflection->getMethod($relation);
+        /** @var AbstractRelation $relation */
+        $relation     = $method->invoke($this->model);
+        $relatedClass = $relation->getRelatedClass();
+        $query        = $relatedClass::query();
 
-		$method = $reflection->getMethod( $relation );
+        if ($relation instanceof HasMany || $relation instanceof HasOne) {
+            $query->whereColumn(
+                $relation->getForeignKey(),
+                $this->model->getTableName() 
+                . '.' 
+                . $relation->getLocalKey()
+            );
+        } elseif ($relation instanceof BelongsTo) {
+            $query->whereColumn(
+                $relation->getLocalKey(),
+                $this->model->getTableName()
+                . '.'
+                . $relation->getForeignKey()
+            );
+        }
 
-		/** @var Relation $relation */
-		$relation = $method->invoke( $this->model );
-		$related_class = $relation->getRelatedClass();
+        if (is_callable($callback)) {
+            call_user_func($callback, $query);
+        }
 
-		$query = $related_class::query();
+        $sql = $query->generateQuery();
 
-		if ( $relation instanceof HasMany || $relation instanceof HasOne ) {
-			$query->whereColumn( $relation->getForeignKey(), $this->model->getTableName() . '.' . $relation->getLocalKey() );
-		} elseif ( $relation instanceof BelongsTo ) {
-			$query->whereColumn( $relation->getLocalKey(), $this->model->getTableName() . '.' . $relation->getForeignKey() );
-		}
+        $this->existsArray[] = [
+            'sql'    => $sql,
+            'method' => 'AND'
+        ];
 
-		if ( is_callable( $callback ) ) {
-			call_user_func( $callback, $query );
-		}
-
-		$sql = $query->generateQuery();
-
-		$this->existsArray[] = [
-			'sql' => $sql,
-			'method' => 'AND'
-		];
-
-		return $this;
-	}
-
+        return $this;
+    }
 
 	/**
 	 * Group by columns
-	 * 
-	 * @since 1.0.0
-	 * 
-	 * @param string ...$column
-	 * 
+	 *
+     * @param string ...$columns
 	 * @return QueryBuilder
 	 */
-	public function groupBy( ...$columns ) {
-		foreach ( $columns as $column ) {
-			$this->groupBy[] = $column;
-		}
-		return $this;
-	}
+	public function groupBy(string ...$columns): QueryBuilder
+    {
+        foreach ($columns as $column) {
+            $this->groupBy[] = $column;
+        }
+        return $this;
+    }
 
 	/**
 	 * Where In
 	 *
-	 * @since 1.0.2
-	 * 
 	 * @param string $column Name of the column.
-	 * @param array $value Array values of the column.
-	 * 
+	 * @param array  $values Array values of the column.
 	 * @return QueryBuilder
 	 */
-	public function whereIn( $column, $values = [] ) {
-		$this->where( $column, 'IN', $values );
-		return $this;
-	}
-
-	/**
-	 * Add an "or where" with relation clause to the query.
-	 * 
-	 * @since 1.0.0
-	 * 
-	 * @param mixed $column
-	 * @param mixed $operator
-	 * @param mixed $value
-	 * 
-	 * @return static
-	 */
-	public function orWhereRelation( $relation, $column, $value_or_operator, $field_value = null ) {
-		return $this->whereRelation( $relation, $column, $value_or_operator, $field_value, 'OR' );
-	}
-
-	/**
-	 * Add an "where" with relation clause to the query.
-	 * 
-	 * @since 1.0.0
-	 * 
-	 * @param mixed $column
-	 * @param mixed $operator
-	 * @param mixed $value
-	 * 
-	 * @return static
-	 */
-	public function whereRelation( $relation, $column, $value_or_operator, $field_value = null, $query_method = 'AND' ) {
-		//TODO: Verify and refactor this
-		$reflection = new \ReflectionClass( $this->model );
-
-		$method = $reflection->getMethod( $relation );
-		$returnType = $method->getReturnType();
-
-		if ( $returnType && $relation === $method->getName() ) {
-			if ( $returnType instanceof \ReflectionNamedType && $returnType->getName() === HasOne::class) {
-				/**
-				 * @var HasOne
-				 * TODO: Verify not implemented
-				 */
-				$hasOne = $method->invoke( $this->model );
-				$related_class = $hasOne->getRelatedClass();
-				$table_name = $related_class::getFullTableName();
-
-				$this->joinArray[] = [
-					'table' => $table_name,
-					'foreign_key' => $this->model->getForeignKey() . '_id',
-					'local_key' => 'id',
-				];
-
-				//TODO: Replace by $this->where
-				$this->whereArray[] = [
-					'method' => $query_method,
-					'column' => "{$column}",
-					'table' => $table_name,
-					'value' => isset( $field_value ) ? $field_value : $value_or_operator,
-					'operator' => isset( $field_value ) ? $value_or_operator : '='
-				];
-
-				if ( $related_class::isTrashed() ) {
-					$this->whereArray[] = [
-						'column' => 'deleted_at',
-						'table' => $table_name,
-						'value' => '!#####NULL#####!',
-						'operator' => 'IS'
-					];
-				}
-			}
-
-			if ( $returnType instanceof \ReflectionNamedType && $returnType->getName() === BelongsTo::class) {
-				/**
-				 * @var BelongsTo
-				 */
-				$belongsTo = $method->invoke( $this->model );
-				$related_class = $belongsTo->getRelatedClass();
-				$table_name = $related_class::getFullTableName();
-
-
-				$this->joinArray[] = [
-					'table' => $table_name,
-					'foreign_key' => $belongsTo->getLocalKey(),
-					'local_key' => $belongsTo->getForeignKey()
-				];
-
-				//TODO: Replace by $this->where
-				$this->whereArray[] = [
-					'method' => $query_method,
-					'column' => "{$column}",
-					'table' => $table_name,
-					'value' => isset( $field_value ) ? $field_value : $value_or_operator,
-					'operator' => isset( $field_value ) ? $value_or_operator : '='
-				];
-
-				if ( $related_class::isTrashed() ) {
-					$this->whereArray[] = [
-						'column' => 'deleted_at',
-						'table' => $table_name,
-						'value' => '!#####NULL#####!',
-						'operator' => 'IS'
-					];
-				}
-			}
-		}
-
-
+	public function whereIn(string $column, array $values = []): QueryBuilder
+    {
+		$this->where($column, 'IN', $values);
 
 		return $this;
 	}
 
+    /**
+     * Add an "or where" with relation clause to the query.
+     *
+     * @param mixed $relation
+     * @param mixed $column
+     * @param mixed $valueOrOperator
+     * @param mixed|null $fieldValue
+     * @return static
+     * @throws ReflectionException
+     */
+	public function orWhereRelation(
+        mixed $relation,
+        mixed $column,
+        mixed $valueOrOperator,
+        mixed $fieldValue = null
+    ): static
+    {
+		return $this->whereRelation(
+            $relation,
+            $column,
+            $valueOrOperator,
+            $fieldValue,
+            'OR'
+        );
+	}
+
+    /**
+     * Add a "where" with relation clause to the query.
+     *
+     * @param mixed      $relation
+     * @param mixed      $column
+     * @param mixed      $valueOrOperator
+     * @param mixed|null $fieldValue
+     * @param mixed      $queryMethod
+     * @return static
+     * @throws ReflectionException
+     */
+	public function whereRelation(
+        mixed $relation,
+        mixed $column,
+        mixed $valueOrOperator,
+        mixed $fieldValue = null,
+        mixed $queryMethod = 'AND'
+    ): static
+    {
+        //TODO: Verify and refactor this
+        $reflection = new ReflectionClass($this->model);
+        $method     = $reflection->getMethod($relation);
+        $returnType = $method->getReturnType();
+
+        if ($returnType && $relation === $method->getName()) {
+            if ($returnType instanceof ReflectionNamedType && $returnType->getName() === HasOne::class) {
+                /**
+                 * @var HasOne $hasOne
+                 * TODO: Verify not implemented
+                 */
+                $hasOne       = $method->invoke($this->model);
+                $relatedClass = $hasOne->getRelatedClass();
+                $tableName    = $relatedClass::getFullTableName();
+
+                $this->joinArray[] = [
+                    'table'       => $tableName,
+                    'foreign_key' => $this->model->getForeignKey() . '_id',
+                    'local_key'   => 'id',
+                ];
+
+                //TODO: Replace by $this->where
+                $this->whereArray[] = [
+                    'method'   => $queryMethod,
+                    'column'   => "{$column}",
+                    'table'    => $tableName,
+                    'value'    => $fieldValue ?? $valueOrOperator,
+                    'operator' => isset($fieldValue) ? $valueOrOperator : '='
+                ];
+
+                if ($relatedClass::isTrashed()) {
+                    $this->whereArray[] = [
+                        'column'   => 'deleted_at',
+                        'table'    => $tableName,
+                        'value'    => '!#####NULL#####!',
+                        'operator' => 'IS'
+                    ];
+                }
+            }
+
+            if ($returnType instanceof ReflectionNamedType && $returnType->getName() === BelongsTo::class) {
+                /**
+                 * @var BelongsTo $belongsTo
+                 */
+                $belongsTo    = $method->invoke($this->model);
+                $relatedClass = $belongsTo->getRelatedClass();
+                $tableName    = $relatedClass::getFullTableName();
+
+
+                $this->joinArray[] = [
+                    'table'       => $tableName,
+                    'foreign_key' => $belongsTo->getLocalKey(),
+                    'local_key'   => $belongsTo->getForeignKey()
+                ];
+
+                //TODO: Replace by $this->where
+                $this->whereArray[] = [
+                    'method'   => $queryMethod,
+                    'column'   => "{$column}",
+                    'table'    => $tableName,
+                    'value'    => $fieldValue ?? $valueOrOperator,
+                    'operator' => isset($fieldValue) ? $valueOrOperator : '='
+                ];
+
+                if ($relatedClass::isTrashed()) {
+                    $this->whereArray[] = [
+                        'column'   => 'deleted_at',
+                        'table'    => $tableName,
+                        'value'    => '!#####NULL#####!',
+                        'operator' => 'IS'
+                    ];
+                }
+            }
+        }
+
+        return $this;
+    }
+
 	/**
-	 * Add an "where" with columns compare clause to the query.
-	 * 
-	 * @since 1.0.3
-	 * 
-	 * @param string $column_one Column name
-	 * @param string $operator Operator or Column name
-	 * @param string $column_two Column name 
-	 * 
-	 * @return static
+	 * Add a "where" with columns compare clause to the query.
+	 *
+	 * @param string      $columnOne Column name
+	 * @param string|null $operator  Operator or Column name
+	 * @param string|null $columnTwo Column name
+     * @param string      $method    Method to use
+     * @return static
 	 */
-	public function whereColumn( $column_one, $operator = null, $column_two = null, $method = 'AND' ) {
+	public function whereColumn(
+        string  $columnOne,
+        ?string $operator = null,
+        ?string $columnTwo = null,
+        string  $method = 'AND'
+    ): static
+    {
 		$this->whereColumnArray[] = [
-			'column_one' => $column_one,
-			'operator' => $column_two ? $operator : '=',
-			'column_two' => $column_two ?? $operator,
-			'method' => $method
+			'column_one' => $columnOne,
+			'operator'   => $columnTwo ? $operator : '=',
+			'column_two' => $columnTwo ?? $operator,
+			'method'     => $method
 		];
 
 		return $this;
@@ -485,136 +520,125 @@ class QueryBuilder {
 
 	/**
 	 * Add relations to be loaded with the query
-	 * 
+	 *
 	 * @param string|array $relations
-	 * 
-	 * @since 1.0.0
-	 * 
 	 * @return QueryBuilder
-	 */
-	public function with( $relations ) {
-		if ( is_string( $relations ) ) {
-			$relations = [ $relations ];
-		}
+     */
+	public function with(array|string $relations): QueryBuilder
+    {
+        if (is_string($relations)) {
+            $relations = [$relations];
+        }
 
-		if ( ! is_array( $relations ) ) {
-			return $this;
-		}
+        if (!is_array($relations)) {
+            return $this;
+        }
 
-		foreach ( $relations as $relation ) {
-			$this->addRelationToWith( $relation );
-		}
+        foreach ($relations as $relation) {
+            $this->addRelationToWith($relation);
+        }
 
-		return $this;
-	}
+        return $this;
+    }
 
 	/**
 	 * Add a single relation to the with array
-	 * 
+	 *
 	 * @param string $relation
-	 * 
 	 * @return void
 	 */
-	private function addRelationToWith( $relation ) {
-		if ( ! is_string( $relation ) || empty( $relation ) ) {
-			return;
-		}
+	private function addRelationToWith(string $relation): void
+    {
+        if (empty($relation)) {
+            return;
+        }
 
-		try {
-			$reflection = new \ReflectionClass( $this->model );
+        try {
+            $reflection = new ReflectionClass($this->model);
 
-			if ( ! $reflection->hasMethod( $relation ) ) {
-				return;
-			}
+            if (!$reflection->hasMethod($relation)) {
+                return;
+            }
 
-			$method = $reflection->getMethod( $relation );
+            $method = $reflection->getMethod($relation);
 
-			if ( $relation !== $method->getName() ) {
-				return;
-			}
+            if ($relation !== $method->getName()) {
+                return;
+            }
 
-			$returnType = $method->getReturnType();
-			if ( ! $returnType instanceof \ReflectionNamedType ) {
-				return;
-			}
+            $returnType = $method->getReturnType();
+            if (!$returnType instanceof ReflectionNamedType) {
+                return;
+            }
 
-			$relationInstance = $method->invoke( $this->model );
-			$relatedClass = $relationInstance->getRelatedClass();
-			$returnTypeName = $returnType->getName();
+            $relationInstance = $method->invoke($this->model);
+            $relatedClass     = $relationInstance->getRelatedClass();
+            $returnTypeName   = $returnType->getName();
+            $relationConfig   = $this->buildRelationConfig($returnTypeName, $relatedClass, $relation);
 
-			$relationConfig = $this->buildRelationConfig( $returnTypeName, $relatedClass, $relation );
+            if ($relationConfig) {
+                $this->withArray[] = $relationConfig;
+            }
 
-			if ( $relationConfig ) {
-				$this->withArray[] = $relationConfig;
-			}
-
-		} catch (\Exception $e) {
-			// Silently ignore invalid relations
-			return;
-		}
-	}
+        } catch (Exception) {
+            // Silently ignore invalid relations
+            return;
+        }
+    }
 
 	/**
 	 * Build relation configuration based on relation type
-	 * 
+	 *
 	 * @param string $relationTypeName
-	 * @param string $relatedClass
+	 * @param $relatedClass
 	 * @param string $relation
-	 * 
 	 * @return array|null
 	 */
-	private function buildRelationConfig( $relationTypeName, $relatedClass, $relation ) {
+	private function buildRelationConfig(string $relationTypeName, $relatedClass, string $relation): ?array
+    {
 		$baseConfig = [
-			'model' => $relatedClass,
+			'model'    => $relatedClass,
 			'relation' => $relation,
-			'table' => $relatedClass::getTable(),
+			'table'    => $relatedClass::getTable(),
 		];
 
-		switch ( $relationTypeName ) {
-			case HasOne::class:
-				return array_merge( $baseConfig, [
-					'foreign_key' => $this->model->getForeignKey() . '_id',
-					'local_key' => 'id',
-					'relation_type' => HasOne::class
-				] );
-
-			case BelongsTo::class:
-				return array_merge( $baseConfig, [
-					'foreign_key' => 'id',
-					'local_key' => $relatedClass::getForeignKeyStatic(),
-					'relation_type' => BelongsTo::class
-				] );
-
-			case HasMany::class:
-				return array_merge( $baseConfig, [
-					'foreign_key' => $this->model->getForeignKey() . '_id',
-					'local_key' => 'id',
-					'relation_type' => HasMany::class
-				] );
-
-			default:
-				return null;
-		}
+        return match ($relationTypeName) {
+            HasOne::class    => array_merge($baseConfig, [
+                'foreign_key'   => $this->model->getForeignKey() . '_id',
+                'local_key'     => 'id',
+                'relation_type' => HasOne::class
+            ]),
+            BelongsTo::class  => array_merge($baseConfig, [
+                'foreign_key'   => 'id',
+                'local_key'     => $relatedClass::getForeignKeyStatic(),
+                'relation_type' => BelongsTo::class
+            ]),
+            HasMany::class   => array_merge($baseConfig, [
+                'foreign_key'   => $this->model->getForeignKey() . '_id',
+                'local_key'     => 'id',
+                'relation_type' => HasMany::class
+            ]),
+            default => null,
+        };
 	}
 
 	/**
 	 * Count all records from the table
 	 *
-	 * @since 1.0.0
-	 * 
 	 * @return int Database query results.
 	 */
-	public function count() {
-		return (int) $this->db->get_var( $this->generateQuery( true ) );
-	}
+	public function count(): int
+    {
+		return (int)$this->db->getVar($this->generateQuery(true));
+    }
 
-	/**
-	 * Check if a record exists in the table
+    /**
+     * Check if a record exists in the table
 	 *
-	 * @since 1.0.0
 	 * @return bool
 	 */
-	public function exists() {
+	public function exists(): bool
+    {
 		return $this->count() > 0;
 	}
 
@@ -623,184 +647,181 @@ class QueryBuilder {
 	 *
 	 * @return int|false The number of rows updated, or false on error.
 	 */
-	public function delete( $where_format = null ) {
-		if ( $this->model->trashed() ) {
-			return $this->update( [ 'deleted_at' => current_time( 'mysql' ) ] );
-		} else {
-			$where = [];
-			foreach ( $this->whereArray as $item ) {
-				$where[ $item['column'] ] = $item['value'];
-			}
-			return $this->db->delete( $this->table_name, $where, $where_format );
-		}
-	}
+	public function delete(mixed $whereFormat = null): int|false
+    {
+        if ($this->model->trashed()) {
+            return $this->update(['deleted_at' => current_time('mysql')]);
+        } else {
+            $where = [];
+            foreach ($this->whereArray as $item) {
+                $where[$item['column']] = $item['value'];
+            }
+            return $this->db->delete($this->tableName, $where, $whereFormat);
+        }
+    }
 
-	public function update( $columns_values ) {
-		$set_clauses = [];
-		$values = [];
+	public function update($columnsValues): bool|int
+    {
+        $setClauses = [];
+        $values     = [];
 
-		foreach ( $columns_values as $column => $value ) {
-			$set_clauses[] = "{$column} = %s";
-			$values[] = $value;
-		}
+        foreach ($columnsValues as $column => $value) {
+            $setClauses[] = "{$column} = %s";
+            $values[]     = $value;
+        }
 
-		$set_clause = implode( ', ', $set_clauses );
+        $setClause      = implode(', ', $setClauses);
+        $whereExistsSql = $this->resolveWhereExists();
+        $whereColumnSql = $this->resolveWhereColumn();
+        $where          = $this->resolveWhere();
+        $placeholders   = $where['placeholders'];
+        $whereSql       = implode(' ', $placeholders);
+        $conditions     = array_filter([$whereExistsSql, $whereColumnSql, $whereSql]);
 
-		$whereExistsSql = $this->resolveWhereExists();
-		$whereColumnSql = $this->resolveWhereColumn();
-		$where = $this->resolveWhere();
-		$placeholders = $where['placeholders'];
+        $sql = "UPDATE {$this->tableName} SET {$setClause}";
 
-		$whereSql = implode( ' ', $placeholders );
+        if (!empty($conditions)) {
+            $sql   .= ' WHERE ' . implode(' AND ', $conditions);
+            $values = array_merge($values, $where['values']);
+        }
 
-		$conditions = array_filter( [ $whereExistsSql, $whereColumnSql, $whereSql ] );
+        if (!empty($this->orderBy)) {
+            $sql .= ' ORDER BY ';
+            $orderBy = [];
+            foreach ($this->orderBy as $order) {
+                $orderBy[] = "{$order['column']} " . strtoupper($order['order']);
+            }
+            $sql .= implode(', ', $orderBy);
+        }
 
-		$sql = "UPDATE {$this->table_name} SET {$set_clause}";
+        if ($this->limit) {
+            $sql .= " LIMIT {$this->limit}";
+        }
 
-		if ( ! empty( $conditions ) ) {
-			$sql .= ' WHERE ' . implode( ' AND ', $conditions );
-			$values = array_merge( $values, $where['values'] );
-		}
+        $preparedQuery = $this->db->prepare($sql, ...$values);
 
-		if ( ! empty( $this->orderBy ) ) {
-			$sql .= ' ORDER BY ';
-			$orderBy = [];
-			foreach ( $this->orderBy as $order ) {
-				$orderBy[] = "{$order['column']} " . strtoupper( $order['order'] );
-			}
-			$sql .= implode( ', ', $orderBy );
-		}
-
-		if ( $this->limit ) {
-			$sql .= " LIMIT {$this->limit}";
-		}
-
-		$prepared_query = $this->db->prepare( $sql, ...$values );
-		return $this->db->query( $prepared_query );
-	}
+        return $this->db->query($preparedQuery);
+    }
 
 	/**
 	 * Generate the query
 	 *
-	 * @since 1.0.0
-	 * @since 1.0.2 Add IN operator
-	 * 
+     * @param bool $count
 	 * @return string
 	 */
-	protected function generateQuery( $count = false ) {
-		$sql = $count ? "SELECT count(*) FROM {$this->table_name}" : "SELECT {$this->select} FROM {$this->table_name}";
+	protected function generateQuery(bool $count = false): string
+    {
+        $sql = $count ? "SELECT \count(*) FROM {$this->tableName}" : "SELECT {$this->select} FROM {$this->tableName}";
 
-		foreach ( $this->joinArray as $join ) {
-			$sql .= " INNER JOIN {$join['table']} ON {$this->table_name}.{$join['local_key']} = {$join['table']}.{$join['foreign_key']}";
-		}
+        foreach ($this->joinArray as $join) {
+            $sql .= " INNER JOIN {$join['table']} ON {$this->tableName}.{$join['local_key']} = {$join['table']}.{$join['foreign_key']}";
+        }
 
-		if ( ! empty( $this->whereArray ) || ! empty( $this->whereColumnArray ) ) {
-			$sql .= ' WHERE ';
-			$whereExistsSql = $this->resolveWhereExists();
-			$whereColumnSql = $this->resolveWhereColumn();
-			$where = $this->resolveWhere();
-			$placeholders = $where['placeholders'];
-			$values = $where['values'];
+        if (!empty($this->whereArray) || !empty($this->whereColumnArray)) {
+            $sql .= ' WHERE ';
+            $whereExistsSql = $this->resolveWhereExists();
+            $whereColumnSql = $this->resolveWhereColumn();
+            $where = $this->resolveWhere();
+            $placeholders = $where['placeholders'];
+            $values = $where['values'];
+            $whereSql = implode(' ', $placeholders);
+            $conditions = array_filter([$whereExistsSql, $whereColumnSql, $whereSql]);
+            $sql .= implode(' AND ', $conditions);
+            $sql = $this->db->prepare($sql, ...$values);
+        }
 
-			$whereSql = implode( ' ', $placeholders );
+        if (!empty($this->groupBy)) {
+            $sql .= ' GROUP BY ';
+            $sql .= implode(', ', $this->groupBy);
+        }
 
-			$conditions = array_filter( [ $whereExistsSql, $whereColumnSql, $whereSql ] );
-			$sql .= implode( ' AND ', $conditions );
+        if (!empty($this->orderBy)) {
+            $sql .= ' ORDER BY ';
+            $orderBy = [];
+            foreach ($this->orderBy as $order) {
+                $orderBy[] = "{$order['column']} " . strtoupper($order['order']);
+            }
+            $sql .= implode(', ', $orderBy);
+        }
 
-			$sql = $this->db->prepare( $sql, ...$values );
-		}
+        if ($this->limit) {
+            $sql .= " LIMIT {$this->limit}";
+        }
 
-		if ( ! empty( $this->groupBy ) ) {
-			$sql .= ' GROUP BY ';
-			$sql .= implode( ', ', $this->groupBy );
-		}
+        if ($this->offset) {
+            $sql .= " OFFSET {$this->offset}";
+        }
 
-		if ( ! empty( $this->orderBy ) ) {
-			$sql .= ' ORDER BY ';
-			$orderBy = [];
-			foreach ( $this->orderBy as $order ) {
-				$orderBy[] = "{$order['column']} " . strtoupper( $order['order'] );
-			}
-			$sql .= implode( ', ', $orderBy );
-		}
+        return $sql;
+    }
 
-		if ( $this->limit ) {
-			$sql .= " LIMIT {$this->limit}";
-		}
+	public function resolveWhere(): array
+    {
+        $placeholders = [];
+        $values = [];
 
-		if ( $this->offset ) {
-			$sql .= " OFFSET {$this->offset}";
-		}
+        foreach ($this->whereArray as $where) {
+            if (isset($where['type']) && $where['type'] === 'Nested') {
+                $nestedQuery = new self($this->model);
+                $nestedQuery->whereArray = [];
+                call_user_func($where['callback'], $nestedQuery);
+                $nestedWhere = $nestedQuery->resolveWhere();
 
-		return $sql;
-	}
+                if (!empty($nestedWhere['placeholders'])) {
+                    $nestedSql = '(' . implode(' ', $nestedWhere['placeholders']) . ')';
+                    $method = $where['method'] ?? 'AND';
+                    $placeholders[] = empty($placeholders) ? $nestedSql : "{$method} {$nestedSql}";
+                    $values = array_merge($values, $nestedWhere['values']);
+                }
+                continue;
+            }
 
-	public function resolveWhere() {
-		$placeholders = [];
-		$values = [];
-		foreach ( $this->whereArray as $where ) {
-			if ( isset( $where['type'] ) && $where['type'] === 'Nested' ) {
-				$nestedQuery = new self( $this->model );
-				$nestedQuery->whereArray = [];
-				call_user_func( $where['callback'], $nestedQuery );
-				$nestedWhere = $nestedQuery->resolveWhere();
+            if (isset($where['type']) && $where['type'] === 'Raw') {
+                $sql = $where['sql'];
+                $method = $where['method'] ?? 'AND';
+                $placeholders[] = empty($placeholders) ? "({$sql})" : "{$method} ({$sql})";
+                if (!empty($where['bindings'])) {
+                    $values = array_merge($values, (array)$where['bindings']);
+                }
+                continue;
+            }
 
-				if ( ! empty( $nestedWhere['placeholders'] ) ) {
-					$nestedSql = '(' . implode( ' ', $nestedWhere['placeholders'] ) . ')';
-					$method = $where['method'] ?? 'AND';
-					$placeholders[] = empty( $placeholders ) ? $nestedSql : "{$method} {$nestedSql}";
-					$values = array_merge( $values, $nestedWhere['values'] );
-				}
-				continue;
-			}
+            $operator = $where['operator'] ?? '=';
+            $where['value'] = is_array($where['value']) && empty($where['value']) ? [null] : $where['value'];
+            $value = $where['operator'] === 'IN' ? '(' . implode(', ', array_fill(0, count($where['value']), '%s')) . ')' : '%s';
+            $table_name = $where['table'] ?? $this->tableName;
+            $placeholder = "{$table_name}.{$where['column']} {$operator} {$value}";
+            $method = $where['method'] ?? 'AND';
+            $placeholders[] = empty($placeholders) ? $placeholder : "{$method} {$placeholder}";
 
-			if ( isset( $where['type'] ) && $where['type'] === 'Raw' ) {
-				$sql = $where['sql'];
-				$method = $where['method'] ?? 'AND';
-				$placeholders[] = empty( $placeholders ) ? "({$sql})" : "{$method} ({$sql})";
-				if ( ! empty( $where['bindings'] ) ) {
-					$values = array_merge( $values, (array) $where['bindings'] );
-				}
-				continue;
-			}
+            if (is_array($where['value'])) {
+                $values = array_merge($values, $where['value']);
+            } else {
+                $values[] = $where['value'];
+            }
+        }
 
-			$operator = $where['operator'] ?? '=';
-			$where['value'] = is_array( $where['value'] ) && empty( $where['value'] ) ? [ null ] : $where['value'];
-			$value = $where['operator'] === 'IN' ? '(' . implode( ', ', array_fill( 0, count( $where['value'] ), '%s' ) ) . ')' : '%s';
-			$table_name = $where['table'] ?? $this->table_name;
-			$placeholder = "{$table_name}.{$where['column']} {$operator} {$value}";
-			$method = $where['method'] ?? 'AND';
-			$placeholders[] = empty( $placeholders ) ? $placeholder : "{$method} {$placeholder}";
+        return ['placeholders' => $placeholders, 'values' => $values];
+    }
 
-			if ( is_array( $where['value'] ) ) {
-				$values = array_merge( $values, $where['value'] );
-			} else {
-				$values[] = $where['value'];
-			}
+	public function resolveWhereColumn(): string
+    {
+        $placeholders = [];
 
-		}
+        foreach ($this->whereColumnArray as $where) {
+            $operator = $where['operator'] ?? '=';
+            $column_two = $where['column_two'];
+            $table_name = $this->tableName;
+            $placeholder = "{$table_name}.{$where['column_one']} {$operator} {$column_two}";
+            $method = $where['method'] ?? 'AND';
+            $placeholders[] = empty($placeholders) ? $placeholder : "{$method} {$placeholder}";
+        }
 
-		return [ 'placeholders' => $placeholders, 'values' => $values ];
-	}
+        return implode(' ', $placeholders);
+    }
 
-	public function resolveWhereColumn() {
-		$placeholders = [];
-
-		foreach ( $this->whereColumnArray as $where ) {
-			$operator = $where['operator'] ?? '=';
-			$column_two = $where['column_two'];
-			$table_name = $this->table_name;
-			$placeholder = "{$table_name}.{$where['column_one']} {$operator} {$column_two}";
-			$method = $where['method'] ?? 'AND';
-			$placeholders[] = empty( $placeholders ) ? $placeholder : "{$method} {$placeholder}";
-		}
-
-		$sql = implode( ' ', $placeholders );
-
-		return $sql;
-	}
-
-	public function resolveWhereExists() {
+	public function resolveWhereExists(): string
+    {
 		$placeholders = [];
 		foreach ( $this->existsArray as $where ) {
 			$placeholder = $where['sql'];
@@ -810,184 +831,181 @@ class QueryBuilder {
 			$placeholders[] = empty( $placeholders ) ? $exists : "{$method} {$exists}";
 		}
 
-		$sql = implode( ' ', $placeholders );
+        return implode( ' ', $placeholders );
+    }
 
-		return $sql;
-	}
+    /**
+     * Generate the query
+     *
+     * @param $results
+     * @return array
+     */
+	public function getWithRelations($results): array
+    {
+        if (empty($this->withArray)) {
+            return [];
+        }
 
-	/**
-	 * Generate the query
-	 *
-	 * @since 1.0.0
-	 * 
-	 * @return array
-	 */
-	public function getWithRelations( $results ) {
-		if ( empty( $this->withArray ) ) {
-			return [];
-		}
+        $relations = [];
 
-		$relations = [];
+        $ids = wp_list_pluck($results, $this->model->getPrimaryKey());
 
-		$ids = wp_list_pluck( $results, $this->model->getPrimaryKey() );
-
-		//TODO: optimize this
-		foreach ( $this->withArray as $with ) {
-
-			foreach ( $ids as $id ) {
-				$initial_data = $with['relation_type'] !== BelongsTo::class && $with['relation_type'] !== HasOne::class ?
-					new Collection( [] ) : null;
-				$relations[ $id ][ $with['relation'] ] = $initial_data;
-			}
+        //TODO: optimize this
+        foreach ($this->withArray as $with) {
+            foreach ($ids as $id) {
+                $initial_data = $with['relation_type'] !== BelongsTo::class && $with['relation_type'] !== HasOne::class ?
+                    new Collection([]) : null;
+                $relations[$id][$with['relation']] = $initial_data;
+            }
 
 
-			$foreginIds = wp_list_pluck( $results, $with['local_key'] );
+            $foreignIds = wp_list_pluck($results, $with['local_key']);
 
-			/** @var Model $foreginModel */
-			$foreginModel = new $with['model'];
-			$relationResult = $foreginModel::whereIn( $with['foreign_key'], $foreginIds )->get();
+            /** @var AbstractModel $foreignModel */
+            $foreignModel = new $with['model'];
+            $relationResult = $foreignModel::whereIn($with['foreign_key'], $foreignIds)->get();
 
-			if ( $with['relation_type'] === BelongsTo::class) {
-				foreach ( $results as $item ) {
-					$data = $relationResult->firstWhere( $with['foreign_key'], $item->{$with['local_key']} );
-					$foreginKey = $with['foreign_key'];
-					$relations[ $item->$foreginKey ][ $with['relation'] ] = $data;
-				}
-			} elseif ( $with['relation_type'] === HasOne::class) {
-				foreach ( $relationResult as $item ) {
-					$foreginKey = $with['foreign_key'];
-					$relations[ $item->$foreginKey ][ $with['relation'] ] = $item;
-				}
-			} else {
-				foreach ( $relationResult as $item ) {
-					$foreginKey = $with['foreign_key'];
-					if ( isset( $relations[ $item->$foreginKey ], $relations[ $item->$foreginKey ][ $with['relation'] ] ) ) {
-						$relations[ $item->$foreginKey ][ $with['relation'] ]->push( $item );
-					}
-				}
-			}
-		}
+            if ($with['relation_type'] === BelongsTo::class) {
+                foreach ($results as $item) {
+                    $data = $relationResult->firstWhere($with['foreign_key'], $item->{$with['local_key']});
+                    $foreignKey = $with['foreign_key'];
+                    $relations[$item->$foreignKey][$with['relation']] = $data;
+                }
+            } elseif ($with['relation_type'] === HasOne::class) {
+                foreach ($relationResult as $item) {
+                    $foreignKey = $with['foreign_key'];
+                    $relations[$item->$foreignKey][$with['relation']] = $item;
+                }
+            } else {
+                foreach ($relationResult as $item) {
+                    $foreignKey = $with['foreign_key'];
+                    if (isset($relations[$item->$foreignKey], $relations[$item->$foreignKey][$with['relation']])) {
+                        $relations[$item->$foreignKey][$with['relation']]->push($item);
+                    }
+                }
+            }
+        }
 
-		return $relations;
-	}
+        return $relations;
+    }
 
 	/**
 	 * Get all records from the table
 	 *
-	 * @since 1.0.0
 	 * @return Collection Database query results.
 	 */
-	public function get() {
-		$results = $this->db->get_results( $this->generateQuery() );
-		$relations = $this->getWithRelations( $results );
-		$items = [];
-		foreach ( $results as $result ) {
-			$primaryKey = $this->model->getPrimaryKey();
-			if ( isset( $result->$primaryKey ) ) {
-				$relation = $relations[ $result->$primaryKey ] ?? [];
-				$result = array_merge( (array) $result, $relation );
-			}
-			$itemModel = new $this->model( (array) $result, $this->model->getTableName() );
-			$itemModel->setWasRetrieved( true );
+	public function get(): Collection
+    {
+        $results = $this->db->getResults($this->generateQuery());
+        $relations = $this->getWithRelations($results);
+        $items = [];
+        foreach ($results as $result) {
+            $primaryKey = $this->model->getPrimaryKey();
+            if (isset($result->$primaryKey)) {
+                $relation = $relations[$result->$primaryKey] ?? [];
+                $result = array_merge((array)$result, $relation);
+            }
+            $itemModel = new $this->model((array)$result, $this->model->getTableName());
+            $itemModel->setWasRetrieved(true);
 
-			$items[] = $itemModel;
-		}
-		return new Collection( $items );
-	}
+            $items[] = $itemModel;
+        }
+
+        return new Collection($items);
+    }
 
 	/**
 	 * Get the first record from the table
 	 *
-	 * @since 1.0.0
-	 * @return Model|null Database query result.
-	 */
-	public function first() {
+	 * @return AbstractModel|null Database query result.
+     */
+    public function first(): ?AbstractModel
+    {
 		$results = $this->get();
 		return $results[0] ?? null;
 	}
 
-	/**
-	 * Get the first record from the table or throw an exception
-	 *
-	 * @since 1.0.0
-	 * @return object Database query result.
-	 */
-	public function firstOrFail() {
-		$result = $this->first();
-		if ( ! $result ) {
-			throw new \Exception( 'No record found' );
-		}
-		return $result;
-	}
+    /**
+     * Get the first record from the table or throw an exception
+     *
+     * @return AbstractModel Database query result.
+     * @throws Exception
+     */
+	public function firstOrFail(): AbstractModel
+    {
+        $result = $this->first();
+        if (!$result) {
+            throw new Exception('No record found');
+        }
+
+        return $result;
+    }
 
 	/**
 	 * Order by
 	 *
-	 * @since 1.0.0
-	 * 
-	 * @param array $attributes
-	 * @param string $order Values: asc, desc
-	 * 
+	 * @param array  $column
+     * @param string $order Values: asc, desc
 	 * @return QueryBuilder
 	 */
-	public function orderBy( $column, $order = 'asc' ) {
-		$this->orderBy[] = [ 'column' => $column, 'order' => $order ];
+	public function orderBy(array $column, string $order = 'asc'): QueryBuilder
+    {
+		$this->orderBy[] = ['column' => $column, 'order' => $order];
+
 		return $this;
 	}
 
 	/**
 	 * Limit
 	 *
-	 * @since 1.0.0
-	 * 
 	 * @param int $limit
-	 * 
 	 * @return QueryBuilder
 	 */
-	public function limit( $limit ) {
-		$this->limit = $limit;
-		return $this;
-	}
+	public function limit(int $limit): QueryBuilder
+    {
+        $this->limit = $limit;
+        
+        return $this;
+    }
 
 	/**
 	 * Offset
 	 *
-	 * @since 1.0.0
-	 * 
 	 * @param int $offset
-	 * 
 	 * @return QueryBuilder
 	 */
-	public function offset( $offset ) {
-		$this->offset = $offset;
-		return $this;
-	}
+	public function offset(int $offset): QueryBuilder
+    {
+        $this->offset = $offset;
+
+        return $this;
+    }
 
 	/**
 	 * Get the model instance
 	 *
-	 * @since 1.0.3
-	 * 
-	 * @return Model
-	 */
-	public function getModel() {
+	 * @return AbstractModel
+     */
+    public function getModel(): AbstractModel
+    {
 		return $this->model;
 	}
 
 	/**
 	 * Paginate the results.
-	 * 
-	 * @param mixed $per_page
-	 * 
+	 *
+	 * @param mixed  $perPage
+     * @param string $queryPageKey
 	 * @return Paginator
 	 */
-	public function paginate( $per_page, $columns = [], $query_page_key = 'page' ) {
-		$current_page = (int) ( $_GET[ $query_page_key ] ?? 1 );
-		$total = $this->count();
-		$items = $this->offset( ( $current_page - 1 ) * $per_page )
-			->limit( $per_page )
-			->get();
+	public function paginate(mixed $perPage, string $queryPageKey = 'page' ): Paginator
+    {
+        $currentPage = (int)($_GET[$queryPageKey] ?? 1);
+        $total       = $this->count();
+        $items       = $this->offset(($currentPage - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
 
-		return new Paginator( $items->getAll(), $total, $per_page, $current_page );
-	}
+        return new Paginator($items->getAll(), $total, $perPage, $currentPage);
+    }
 }

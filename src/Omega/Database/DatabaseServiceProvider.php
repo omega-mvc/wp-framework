@@ -1,29 +1,36 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Database;
 
 use Omega\Container\ServiceProvider;
 use Omega\Database\Migrations\Migrator;
 
-defined( 'ABSPATH' ) || exit;
+use function add_filter;
+use function str_replace;
 
-class DatabaseServiceProvider extends ServiceProvider {
-	public function register() {
-		$app = $this->app;
-		$app->singleton( 'database', function () use ($app) {
-			return new Database( $app );
-		} );
+class DatabaseServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $app = $this->app;
+        $app->singleton('database', function () use ($app) {
+            return new Database($app);
+        });
 
-		$this->app->singleton( 'migrator', function () {
-			return new Migrator( $this->app );
-		} );
-	}
+        $this->app->singleton('migrator', function () {
+            return new Migrator($this->app);
+        });
+    }
 
-	public function boot() {
-		add_filter( 'query', [ $this, 'nulled_query_replace' ] );
-	}
+    public function boot(): void
+    {
+        add_filter('query', [$this, 'nulledQueryReplace']);
+    }
 
-	public function nulled_query_replace( $query ) {
-		return str_replace( [ "IS '!#####NULL#####!'", "IS NOT '!#####NULL#####!'" ], [ 'IS NULL', 'IS NOT NULL' ], $query );
-	}
+    public function nulledQueryReplace($query): array|string
+    {
+        return str_replace(["IS '!#####NULL#####!'", "IS NOT '!#####NULL#####!'"], ['IS NULL', 'IS NOT NULL'], $query);
+    }
 }

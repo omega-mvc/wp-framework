@@ -1,9 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Database\Eloquent\Relations;
-
-defined( 'ABSPATH' ) || exit;
-
-class HasMany extends HasOneOrMany {
-
+class HasMany extends AbstractHasOneOrMany
+{
 }

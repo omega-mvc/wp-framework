@@ -1,16 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Database\Eloquent\Casts;
 
+use Omega\Database\Eloquent\AbstractModel;
 use Omega\Database\Eloquent\CastsAttributesInterface;
 
-class ArrayCast implements CastsAttributesInterface {
+use function json_decode;
+use function wp_json_encode;
 
-	public function get( $model, string $key, $value, array $attributes ) {
-		return json_decode( $value, true );
-	}
+class ArrayCast implements CastsAttributesInterface
+{
+    public function get(AbstractModel $model, string $key, mixed $value, array $attributes): mixed
+    {
+        return json_decode($value, true);
+    }
 
-	public function set( $model, string $key, $value, array $attributes ) {
-		return wp_json_encode( $value );
-	}
+    public function set(AbstractModel $model, string $key, mixed $value, array $attributes): mixed
+    {
+        return wp_json_encode($value);
+    }
 }

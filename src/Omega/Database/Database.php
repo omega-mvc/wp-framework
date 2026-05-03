@@ -19,7 +19,7 @@ use function sprintf;
 
 /**
  * Database class
- * 
+ *
  * This class is responsible for handling all database operations
  */
 class Database

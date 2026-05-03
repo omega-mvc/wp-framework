@@ -28,7 +28,6 @@ class AdminManager
         $current_page = $_GET['page'];
 
         return array_any($this->hiddenPages, fn($page) => $current_page === $page);
-
     }
 
     public function addHiddenNoticesPage($id): void

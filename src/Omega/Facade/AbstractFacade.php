@@ -8,8 +8,6 @@ use Omega\Application\ApplicationInstance;
 use Omega\Facade\Exception\FacadeObjectNotSetException;
 use RuntimeException;
 
-defined( 'ABSPATH' ) || exit;
-
 abstract class AbstractFacade implements FacadeInterface
 {
     protected static array $resolvedInstance = [];

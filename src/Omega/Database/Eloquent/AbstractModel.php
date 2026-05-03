@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Database\Eloquent;
 
 use ArrayAccess;
@@ -34,8 +36,6 @@ use function preg_replace;
 use function str_replace;
 use function strtolower;
 use function ucwords;
-
-defined( 'ABSPATH' ) || exit;
 
 abstract class AbstractModel implements ArrayAccess
 {
@@ -521,7 +521,7 @@ abstract class AbstractModel implements ArrayAccess
      *
      * @return string
      */
-    static public function getTable(): string
+    public static function getTable(): string
     {
         $instance = self::getInstance();
 
@@ -600,7 +600,14 @@ abstract class AbstractModel implements ArrayAccess
         if ($attributeMethod && method_exists($this, $attributeMethod)) {
             $attribute = $this->$attributeMethod();
             if ($attribute instanceof Attribute && $attribute->get) {
-                return call_user_func($attribute->get, $value !== null ? $value : ($this->data[$key] ?? null), $this->data);
+                return call_user_func(
+                    $attribute->get,
+                    $value !== null
+                        ? $value
+                        : ($this->data[$key] ?? null
+                    ),
+                    $this->data
+                );
             }
         }
 
@@ -633,7 +640,7 @@ abstract class AbstractModel implements ArrayAccess
                 }
 
                 if (class_exists($cast)) {
-                    $cast = new $cast;
+                    $cast = new $cast();
                 }
             }
             if ($cast instanceof CastsAttributesInterface) {
@@ -690,7 +697,7 @@ abstract class AbstractModel implements ArrayAccess
                         return $value === null ? null : (string)$value;
                 }
                 if (class_exists($cast)) {
-                    $cast = new $cast;
+                    $cast = new $cast();
                 }
             }
             if ($cast instanceof CastsAttributesInterface) {

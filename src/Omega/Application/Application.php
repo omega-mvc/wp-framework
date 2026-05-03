@@ -106,7 +106,6 @@ class Application extends Container
 
     protected function registerBaseBindings()
     {
-
     }
 
     protected function registerBaseServiceProviders(): void
@@ -133,7 +132,6 @@ class Application extends Container
 
     protected function registerCoreContainerAliases()
     {
-
     }
 
     public function register($provider)
@@ -163,7 +161,6 @@ class Application extends Container
                 $provider->boot();
             }
         }
-
     }
 
     public function addRouteFile($path, $type = 'api'): void

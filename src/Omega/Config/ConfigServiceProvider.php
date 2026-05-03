@@ -1,13 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Config;
 
 use Omega\Container\ServiceProvider;
+
 use function basename;
 use function glob;
 use function is_dir;
-
-defined( 'ABSPATH' ) || exit;
 
 class ConfigServiceProvider extends ServiceProvider
 {

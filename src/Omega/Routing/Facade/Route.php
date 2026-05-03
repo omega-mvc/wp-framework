@@ -1,11 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Routing\Facade;
 
 use Omega\Facade\AbstractFacade;
 use Omega\Routing\Router;
-
-defined( 'ABSPATH' ) || exit;
 
 /**
  * @method static Router get(string $uri, array|string|callable|null $action = null)

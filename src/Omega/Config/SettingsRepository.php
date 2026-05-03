@@ -20,7 +20,7 @@ use function update_option;
 
 /**
  * Settings repository.
- * 
+ *
  * @since   1.0.0
  */
 class SettingsRepository
@@ -75,7 +75,9 @@ class SettingsRepository
 
         $keys = explode('.', $name);
 
-        $update_data = count($keys) > 1 ? $this->addKeyValueRecursively($keys, $processed_value) : [$name => $processed_value];
+        $update_data = count($keys) > 1
+            ? $this->addKeyValueRecursively($keys, $processed_value)
+            : [$name => $processed_value];
 
         $settings = $this->mergeConfig($this->config, $update_data);
 

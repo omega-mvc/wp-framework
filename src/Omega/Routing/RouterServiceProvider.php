@@ -1,9 +1,11 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Omega\Routing;
 
 use Omega\Container\ServiceProvider;
+
 use function add_action;
 use function file_exists;
 

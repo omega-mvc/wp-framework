@@ -27,9 +27,9 @@ use function usort;
 
 /**
  * Collection class
- * 
+ *
  * This class is responsible for handling collections
- * 
+ *
  * @since 1.0.0
  */
 class Collection implements ArrayAccess, IteratorAggregate

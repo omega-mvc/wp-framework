@@ -12,8 +12,12 @@ use function rest_ensure_response;
 
 class Response
 {
-    public function json(array $data = [], int $status = 200, array $headers = [], int $options = 0): WP_Error|WP_REST_Response
-    {
+    public function json(
+        array $data = [],
+        int $status = 200,
+        array $headers = [],
+        int $options = 0
+    ): WP_Error|WP_REST_Response {
         if ($status >= 400) {
             return new WP_Error(
                 $status,

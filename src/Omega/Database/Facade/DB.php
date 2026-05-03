@@ -17,8 +17,8 @@ use Omega\Facade\AbstractFacade;
  */
 class DB extends AbstractFacade
 {
-	public static function getFacadeAccessor(): string
+    public static function getFacadeAccessor(): string
     {
-		return 'database';
-	}
+        return 'database';
+    }
 }

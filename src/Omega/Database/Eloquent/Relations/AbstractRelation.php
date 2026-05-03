@@ -20,8 +20,8 @@ abstract class AbstractRelation
         protected AbstractModel $parent,
         protected AbstractModel|string $relatedClass,
         protected string $foreignKey,
-        protected string $localKey)
-    {
+        protected string $localKey
+    ) {
     }
 
     public function getForeignKey(): string

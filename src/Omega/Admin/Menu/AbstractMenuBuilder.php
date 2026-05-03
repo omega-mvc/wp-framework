@@ -11,8 +11,6 @@ use function add_menu_page;
 use function add_submenu_page;
 use function remove_submenu_page;
 
-defined('ABSPATH') || exit;
-
 abstract class AbstractMenuBuilder
 {
     protected array $menus = [];

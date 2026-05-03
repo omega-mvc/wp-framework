@@ -1,12 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Config\Facades;
 
 use Closure;
 use Omega\Config\SettingsRepository;
 use Omega\Facade\AbstractFacade;
-
-defined( 'ABSPATH' ) || exit;
 
 /**
  * @method static bool has(string $key)

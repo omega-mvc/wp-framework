@@ -1,10 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Omega\Container;
 
 use Omega\Application\Application;
-
-defined( 'ABSPATH' ) || exit;
 
 class ServiceProvider
 {
@@ -14,12 +14,10 @@ class ServiceProvider
 
     public function register()
     {
-
     }
 
     public function boot()
     {
-
     }
 
     public function loadRoutesFrom($path, $type = 'api'): void

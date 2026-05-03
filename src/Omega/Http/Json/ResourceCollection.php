@@ -32,8 +32,9 @@ class ResourceCollection
      */
     public function __construct(Collection|Paginator $collection, ?string $collects = null, array $options = [])
     {
-        if ($collects)
+        if ($collects) {
             $this->collects = $collects;
+        }
 
         if ($collection instanceof Paginator) {
             $this->collection = $collection->getCollection();

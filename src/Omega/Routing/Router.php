@@ -14,6 +14,7 @@ use ReflectionMethod;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
+
 use function add_submenu_page;
 use function array_any;
 use function array_filter;
@@ -117,11 +118,11 @@ class Router
         );
 
         // add_action( 'load-' . $hook_suffix, function () use ($hook_suffix) {
-        // 	add_action( 'admin_enqueue_scripts', function ($hook) use ($hook_suffix) {
-        // 		if ( $hook === $hook_suffix ) {
-        // 			$here = 'hero';
-        // 		}
-        // 	} );
+        //  add_action( 'admin_enqueue_scripts', function ($hook) use ($hook_suffix) {
+        //      if ( $hook === $hook_suffix ) {
+        //          $here = 'hero';
+        //      }
+        //  } );
         // } );
     }
 
@@ -139,7 +140,6 @@ class Router
                             return rest_ensure_response($response->toArray());
                         }
                         return rest_ensure_response($response);
-
                     } catch (Exception $e) {
                         return new WP_Error('server_error', $e->getMessage(), ['status' => 500]);
                     }
@@ -242,7 +242,9 @@ class Router
                     if ($request) {
                         $resolved[] = $request;
                     } else {
-                        throw new Exception("WP_REST_Request requested but no request available for parameter: {$param->getName()}");
+                        throw new Exception(
+                            "WP_REST_Request requested but no request available for parameter: {$param->getName()}"
+                        );
                     }
                 } else {
                     $resolved[] = ApplicationInstance::app($className);

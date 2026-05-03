@@ -9,7 +9,7 @@ use function sanitize_text_field;
 
 /**
  * Config repository.
- * 
+ *
  * @since   1.0.0
  */
 class ConfigRepository

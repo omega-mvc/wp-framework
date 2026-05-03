@@ -1,6 +1,8 @@
-<?php /** @noinspection PhpUnusedParameterInspection */
-/** @noinspection PhpUnused */
+<?php
 
+/** @noinspection PhpUnusedParameterInspection */
+
+/** @noinspection PhpUnused */
 /** @noinspection PhpUnnecessaryCurlyVarSyntaxInspection */
 
 declare(strict_types=1);
@@ -40,121 +42,121 @@ use function wp_list_pluck;
  */
 class QueryBuilder
 {
-	/** @var string Table name. */
-	protected string $tableName;
+    /** @var string Table name. */
+    protected string $tableName;
 
-	/** @var Database Database instance. */
-	protected Database $db;
+    /** @var Database Database instance. */
+    protected Database $db;
 
-	/**
-	 * Where array
+    /**
+     * Where array
      *
-	 * @var array{
-	 * 		column: string,
-	 * 		value: mixed,
-	 * 		operator: string,
-	 * 		method: string,
-	 * 		table: string
-	 * }
-	 */
-	protected array $whereArray = [];
+     * @var array{
+     *      column: string,
+     *      value: mixed,
+     *      operator: string,
+     *      method: string,
+     *      table: string
+     * }
+     */
+    protected array $whereArray = [];
 
-	/**
-	 * Exists array
+    /**
+     * Exists array
      *
-	 * @var array{
-	 * 		sql: string,
-	 * 		method: string
-	 * }
-	 */
-	protected array $existsArray = [];
+     * @var array{
+     *      sql: string,
+     *      method: string
+     * }
+     */
+    protected array $existsArray = [];
 
-	/**
-	 * Where column array
+    /**
+     * Where column array
      *
-	 * @var array{
-	 * 		column_one: string,
-	 * 		operator: string,
-	 * 		column_two: string,
-	 * 		method: string
-	 * }
-	 */
-	protected array $whereColumnArray = [];
+     * @var array{
+     *      column_one: string,
+     *      operator: string,
+     *      column_two: string,
+     *      method: string
+     * }
+     */
+    protected array $whereColumnArray = [];
 
     /** @var array @var array Join array. */
-	protected array $joinArray = [];
+    protected array $joinArray = [];
 
     /** @var array Group by array. */
-	protected array $groupBy = [];
+    protected array $groupBy = [];
 
-	/**
-	 * With array
+    /**
+     * With array
      *
-	 * @var array{
-	 * 		@type string $relation,
-	 * 		@type string $table,
-	 * 		@type string $foreign_key,
-	 * 		@type string $local_key,
+     * @var array{
+     *      @type string $relation,
+     *      @type string $table,
+     *      @type string $foreign_key,
+     *      @type string $local_key,
      *      @type AbstractModel $model ,
-	 * 		@type AbstractRelation $relation_type
-	 * }
-	 */
-	protected array $withArray = [];
+     *      @type AbstractRelation $relation_type
+     * }
+     */
+    protected array $withArray = [];
 
     /** @var array Order by array. */
-	protected array $orderBy = [];
+    protected array $orderBy = [];
 
     /** @var string  */
-	private string $select = '*';
+    private string $select = '*';
 
-	/** @var int Limit. */
-	private int $limit;
+    /** @var int Limit. */
+    private int $limit;
 
-	/** @var int Offset. */
-	private int $offset;
+    /** @var int Offset. */
+    private int $offset;
 
     public function __construct(protected AbstractModel $model)
     {
-		$this->db        = $model->getDatabase();
-		$this->tableName = $model->getTableName();
+        $this->db        = $model->getDatabase();
+        $this->tableName = $model->getTableName();
 
-		if ($model->trashed()) {
-			$this->whereArray[] = ['column' => 'deleted_at', 'value' => '!#####NULL#####!', 'operator' => 'IS'];
-		}
-	}
+        if ($model->trashed()) {
+            $this->whereArray[] = ['column' => 'deleted_at', 'value' => '!#####NULL#####!', 'operator' => 'IS'];
+        }
+    }
 
-	/**
-	 * Select columns
+    /**
+     * Select columns
      *
-	 * @param array|string $columns
-	 * @return QueryBuilder
-	 */
-	public function select(array|string $columns): QueryBuilder
+     * @param array|string $columns
+     * @return QueryBuilder
+     */
+    public function select(array|string $columns): QueryBuilder
     {
-		$this->select = is_array($columns)
+        $this->select = is_array($columns)
             ? implode(', ', $columns)
             : $columns;
 
         return $this;
-	}
+    }
 
-	public function find($id): ?AbstractModel
+    public function find($id): ?AbstractModel
     {
         return $this->where($this->model->primaryKey, $id)->first();
     }
 
-	public function whereNull(string $column): static
+    public function whereNull(string $column): static
     {
         $this->where($column, 'IS', '!#####NULL#####!');
 
         return $this;
     }
 
-	public function whereNotNull(string $column): static
+    public function whereNotNull(string $column): static
     {
-		$this->where($column, 'IS NOT', '!#####NULL#####!');
+        $this->where($column, 'IS NOT', '!#####NULL#####!');
 
-		return $this;
+        return $this;
     }
 
 
@@ -204,22 +206,22 @@ class QueryBuilder
         return $this;
     }
 
-	public function whereRaw(string $sql, array $bindings = [], string $boolean = 'AND' ): static
+    public function whereRaw(string $sql, array $bindings = [], string $boolean = 'AND'): static
     {
-		$this->whereArray[] = [
-			'type'     => 'Raw',
-			'sql'      => $sql,
-			'bindings' => $bindings,
-			'method'   => $boolean
-		];
+        $this->whereArray[] = [
+            'type'     => 'Raw',
+            'sql'      => $sql,
+            'bindings' => $bindings,
+            'method'   => $boolean
+        ];
 
-		return $this;
-	}
+        return $this;
+    }
 
-	public function orWhereRaw(string $sql, array $bindings = []): static
+    public function orWhereRaw(string $sql, array $bindings = []): static
     {
-		return $this->whereRaw($sql, $bindings, 'OR');
-	}
+        return $this->whereRaw($sql, $bindings, 'OR');
+    }
 
     /**
      * Add a basic where clause to the query.
@@ -231,14 +233,13 @@ class QueryBuilder
      * @param mixed|null $table
      * @return QueryBuilder
      */
-	public function where(
+    public function where(
         mixed $column,
         mixed $operator = null,
         mixed $value = null,
         mixed $method = null,
         mixed $table = null
-    ): static
-    {
+    ): static {
         if (is_array($column)) {
             foreach ($column as $col => $val) {
                 $this->where($col, $val);
@@ -274,15 +275,15 @@ class QueryBuilder
         return $this;
     }
 
-	/**
-	 * Add an "or where" clause to the query.
+    /**
+     * Add an "or where" clause to the query.
      *
      * @param mixed $column
-	 * @param mixed $operator
-	 * @param mixed $value
-	 * @return QueryBuilder
-	 */
-	public function orWhere(mixed $column, mixed $operator = null, mixed $value = null ): QueryBuilder
+     * @param mixed $operator
+     * @param mixed $value
+     * @return QueryBuilder
+     */
+    public function orWhere(mixed $column, mixed $operator = null, mixed $value = null): QueryBuilder
     {
         if (is_array($column)) {
             foreach ($column as $col => $val) {
@@ -302,7 +303,7 @@ class QueryBuilder
      * @return QueryBuilder
      * @throws ReflectionException
      */
-	public function whereHas(string $relation, ?callable $callback = null): QueryBuilder
+    public function whereHas(string $relation, ?callable $callback = null): QueryBuilder
     {
         $reflection   = new ReflectionClass($this->model);
         $method       = $reflection->getMethod($relation);
@@ -314,8 +315,8 @@ class QueryBuilder
         if ($relation instanceof HasMany || $relation instanceof HasOne) {
             $query->whereColumn(
                 $relation->getForeignKey(),
-                $this->model->getTableName() 
-                . '.' 
+                $this->model->getTableName()
+                . '.'
                 . $relation->getLocalKey()
             );
         } elseif ($relation instanceof BelongsTo) {
@@ -341,13 +342,13 @@ class QueryBuilder
         return $this;
     }
 
-	/**
-	 * Group by columns
-	 *
+    /**
+     * Group by columns
+     *
      * @param string ...$columns
-	 * @return QueryBuilder
-	 */
-	public function groupBy(string ...$columns): QueryBuilder
+     * @return QueryBuilder
+     */
+    public function groupBy(string ...$columns): QueryBuilder
     {
         foreach ($columns as $column) {
             $this->groupBy[] = $column;
@@ -355,19 +356,19 @@ class QueryBuilder
         return $this;
     }
 
-	/**
-	 * Where In
-	 *
-	 * @param string $column Name of the column.
-	 * @param array  $values Array values of the column.
-	 * @return QueryBuilder
-	 */
-	public function whereIn(string $column, array $values = []): QueryBuilder
+    /**
+     * Where In
+     *
+     * @param string $column Name of the column.
+     * @param array  $values Array values of the column.
+     * @return QueryBuilder
+     */
+    public function whereIn(string $column, array $values = []): QueryBuilder
     {
-		$this->where($column, 'IN', $values);
+        $this->where($column, 'IN', $values);
 
-		return $this;
-	}
+        return $this;
+    }
 
     /**
      * Add an "or where" with relation clause to the query.
@@ -379,21 +380,20 @@ class QueryBuilder
      * @return static
      * @throws ReflectionException
      */
-	public function orWhereRelation(
+    public function orWhereRelation(
         mixed $relation,
         mixed $column,
         mixed $valueOrOperator,
         mixed $fieldValue = null
-    ): static
-    {
-		return $this->whereRelation(
+    ): static {
+        return $this->whereRelation(
             $relation,
             $column,
             $valueOrOperator,
             $fieldValue,
             'OR'
         );
-	}
+    }
 
     /**
      * Add a "where" with relation clause to the query.
@@ -406,14 +406,13 @@ class QueryBuilder
      * @return static
      * @throws ReflectionException
      */
-	public function whereRelation(
+    public function whereRelation(
         mixed $relation,
         mixed $column,
         mixed $valueOrOperator,
         mixed $fieldValue = null,
         mixed $queryMethod = 'AND'
-    ): static
-    {
+    ): static {
         //TODO: Verify and refactor this
         $reflection = new ReflectionClass($this->model);
         $method     = $reflection->getMethod($relation);
@@ -492,39 +491,38 @@ class QueryBuilder
         return $this;
     }
 
-	/**
-	 * Add a "where" with columns compare clause to the query.
-	 *
-	 * @param string      $columnOne Column name
-	 * @param string|null $operator  Operator or Column name
-	 * @param string|null $columnTwo Column name
+    /**
+     * Add a "where" with columns compare clause to the query.
+     *
+     * @param string      $columnOne Column name
+     * @param string|null $operator  Operator or Column name
+     * @param string|null $columnTwo Column name
      * @param string      $method    Method to use
      * @return static
-	 */
-	public function whereColumn(
-        string  $columnOne,
+     */
+    public function whereColumn(
+        string $columnOne,
         ?string $operator = null,
         ?string $columnTwo = null,
-        string  $method = 'AND'
-    ): static
-    {
-		$this->whereColumnArray[] = [
-			'column_one' => $columnOne,
-			'operator'   => $columnTwo ? $operator : '=',
-			'column_two' => $columnTwo ?? $operator,
-			'method'     => $method
-		];
+        string $method = 'AND'
+    ): static {
+        $this->whereColumnArray[] = [
+            'column_one' => $columnOne,
+            'operator'   => $columnTwo ? $operator : '=',
+            'column_two' => $columnTwo ?? $operator,
+            'method'     => $method
+        ];
 
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Add relations to be loaded with the query
-	 *
-	 * @param string|array $relations
-	 * @return QueryBuilder
+    /**
+     * Add relations to be loaded with the query
+     *
+     * @param string|array $relations
+     * @return QueryBuilder
      */
-	public function with(array|string $relations): QueryBuilder
+    public function with(array|string $relations): QueryBuilder
     {
         if (is_string($relations)) {
             $relations = [$relations];
@@ -541,13 +539,13 @@ class QueryBuilder
         return $this;
     }
 
-	/**
-	 * Add a single relation to the with array
-	 *
-	 * @param string $relation
-	 * @return void
-	 */
-	private function addRelationToWith(string $relation): void
+    /**
+     * Add a single relation to the with array
+     *
+     * @param string $relation
+     * @return void
+     */
+    private function addRelationToWith(string $relation): void
     {
         if (empty($relation)) {
             return;
@@ -579,28 +577,27 @@ class QueryBuilder
             if ($relationConfig) {
                 $this->withArray[] = $relationConfig;
             }
-
         } catch (Exception) {
             // Silently ignore invalid relations
             return;
         }
     }
 
-	/**
-	 * Build relation configuration based on relation type
-	 *
-	 * @param string $relationTypeName
-	 * @param $relatedClass
-	 * @param string $relation
-	 * @return array|null
-	 */
-	private function buildRelationConfig(string $relationTypeName, $relatedClass, string $relation): ?array
+    /**
+     * Build relation configuration based on relation type
+     *
+     * @param string $relationTypeName
+     * @param $relatedClass
+     * @param string $relation
+     * @return array|null
+     */
+    private function buildRelationConfig(string $relationTypeName, $relatedClass, string $relation): ?array
     {
-		$baseConfig = [
-			'model'    => $relatedClass,
-			'relation' => $relation,
-			'table'    => $relatedClass::getTable(),
-		];
+        $baseConfig = [
+            'model'    => $relatedClass,
+            'relation' => $relation,
+            'table'    => $relatedClass::getTable(),
+        ];
 
         return match ($relationTypeName) {
             HasOne::class    => array_merge($baseConfig, [
@@ -620,34 +617,34 @@ class QueryBuilder
             ]),
             default => null,
         };
-	}
+    }
 
-	/**
-	 * Count all records from the table
-	 *
-	 * @return int Database query results.
-	 */
-	public function count(): int
+    /**
+     * Count all records from the table
+     *
+     * @return int Database query results.
+     */
+    public function count(): int
     {
-		return (int)$this->db->getVar($this->generateQuery(true));
+        return (int)$this->db->getVar($this->generateQuery(true));
     }
 
     /**
      * Check if a record exists in the table
-	 *
-	 * @return bool
-	 */
-	public function exists(): bool
+     *
+     * @return bool
+     */
+    public function exists(): bool
     {
-		return $this->count() > 0;
-	}
+        return $this->count() > 0;
+    }
 
-	/**
-	 * Delete a record from the table
-	 *
-	 * @return int|false The number of rows updated, or false on error.
-	 */
-	public function delete(mixed $whereFormat = null): int|false
+    /**
+     * Delete a record from the table
+     *
+     * @return int|false The number of rows updated, or false on error.
+     */
+    public function delete(mixed $whereFormat = null): int|false
     {
         if ($this->model->trashed()) {
             return $this->update(['deleted_at' => current_time('mysql')]);
@@ -660,7 +657,7 @@ class QueryBuilder
         }
     }
 
-	public function update($columnsValues): bool|int
+    public function update($columnsValues): bool|int
     {
         $setClauses = [];
         $values     = [];
@@ -703,18 +700,19 @@ class QueryBuilder
         return $this->db->query($preparedQuery);
     }
 
-	/**
-	 * Generate the query
-	 *
+    /**
+     * Generate the query
+     *
      * @param bool $count
-	 * @return string
-	 */
-	protected function generateQuery(bool $count = false): string
+     * @return string
+     */
+    protected function generateQuery(bool $count = false): string
     {
         $sql = $count ? "SELECT \count(*) FROM {$this->tableName}" : "SELECT {$this->select} FROM {$this->tableName}";
 
         foreach ($this->joinArray as $join) {
-            $sql .= " INNER JOIN {$join['table']} ON {$this->tableName}.{$join['local_key']} = {$join['table']}.{$join['foreign_key']}";
+            $sql .= " INNER JOIN {$join['table']} ON {$this->tableName}
+            .{$join['local_key']} = {$join['table']}.{$join['foreign_key']}";
         }
 
         if (!empty($this->whereArray) || !empty($this->whereColumnArray)) {
@@ -755,7 +753,7 @@ class QueryBuilder
         return $sql;
     }
 
-	public function resolveWhere(): array
+    public function resolveWhere(): array
     {
         $placeholders = [];
         $values = [];
@@ -788,7 +786,9 @@ class QueryBuilder
 
             $operator = $where['operator'] ?? '=';
             $where['value'] = is_array($where['value']) && empty($where['value']) ? [null] : $where['value'];
-            $value = $where['operator'] === 'IN' ? '(' . implode(', ', array_fill(0, count($where['value']), '%s')) . ')' : '%s';
+            $value = $where['operator'] === 'IN'
+                ? '(' . implode(', ', array_fill(0, count($where['value']), '%s')) . ')'
+                : '%s';
             $table_name = $where['table'] ?? $this->tableName;
             $placeholder = "{$table_name}.{$where['column']} {$operator} {$value}";
             $method = $where['method'] ?? 'AND';
@@ -804,7 +804,7 @@ class QueryBuilder
         return ['placeholders' => $placeholders, 'values' => $values];
     }
 
-	public function resolveWhereColumn(): string
+    public function resolveWhereColumn(): string
     {
         $placeholders = [];
 
@@ -820,18 +820,18 @@ class QueryBuilder
         return implode(' ', $placeholders);
     }
 
-	public function resolveWhereExists(): string
+    public function resolveWhereExists(): string
     {
-		$placeholders = [];
-		foreach ( $this->existsArray as $where ) {
-			$placeholder = $where['sql'];
-			$method = $where['method'] ?? 'AND';
-			$not = ! empty( $where['not'] );
-			$exists = ( $not ? 'NOT ' : '' ) . "EXISTS ({$placeholder})";
-			$placeholders[] = empty( $placeholders ) ? $exists : "{$method} {$exists}";
-		}
+        $placeholders = [];
+        foreach ($this->existsArray as $where) {
+            $placeholder = $where['sql'];
+            $method = $where['method'] ?? 'AND';
+            $not = ! empty($where['not']);
+            $exists = ( $not ? 'NOT ' : '' ) . "EXISTS ({$placeholder})";
+            $placeholders[] = empty($placeholders) ? $exists : "{$method} {$exists}";
+        }
 
-        return implode( ' ', $placeholders );
+        return implode(' ', $placeholders);
     }
 
     /**
@@ -840,7 +840,7 @@ class QueryBuilder
      * @param $results
      * @return array
      */
-	public function getWithRelations($results): array
+    public function getWithRelations($results): array
     {
         if (empty($this->withArray)) {
             return [];
@@ -853,8 +853,9 @@ class QueryBuilder
         //TODO: optimize this
         foreach ($this->withArray as $with) {
             foreach ($ids as $id) {
-                $initial_data = $with['relation_type'] !== BelongsTo::class && $with['relation_type'] !== HasOne::class ?
-                    new Collection([]) : null;
+                $initial_data = $with['relation_type'] !== BelongsTo::class && $with['relation_type'] !== HasOne::class
+                    ? new Collection([])
+                    : null;
                 $relations[$id][$with['relation']] = $initial_data;
             }
 
@@ -862,7 +863,7 @@ class QueryBuilder
             $foreignIds = wp_list_pluck($results, $with['local_key']);
 
             /** @var AbstractModel $foreignModel */
-            $foreignModel = new $with['model'];
+            $foreignModel = new $with['model']();
             $relationResult = $foreignModel::whereIn($with['foreign_key'], $foreignIds)->get();
 
             if ($with['relation_type'] === BelongsTo::class) {
@@ -889,12 +890,12 @@ class QueryBuilder
         return $relations;
     }
 
-	/**
-	 * Get all records from the table
-	 *
-	 * @return Collection Database query results.
-	 */
-	public function get(): Collection
+    /**
+     * Get all records from the table
+     *
+     * @return Collection Database query results.
+     */
+    public function get(): Collection
     {
         $results = $this->db->getResults($this->generateQuery());
         $relations = $this->getWithRelations($results);
@@ -914,16 +915,16 @@ class QueryBuilder
         return new Collection($items);
     }
 
-	/**
-	 * Get the first record from the table
-	 *
-	 * @return AbstractModel|null Database query result.
+    /**
+     * Get the first record from the table
+     *
+     * @return AbstractModel|null Database query result.
      */
     public function first(): ?AbstractModel
     {
-		$results = $this->get();
-		return $results[0] ?? null;
-	}
+        $results = $this->get();
+        return $results[0] ?? null;
+    }
 
     /**
      * Get the first record from the table or throw an exception
@@ -931,7 +932,7 @@ class QueryBuilder
      * @return AbstractModel Database query result.
      * @throws Exception
      */
-	public function firstOrFail(): AbstractModel
+    public function firstOrFail(): AbstractModel
     {
         $result = $this->first();
         if (!$result) {
@@ -941,64 +942,64 @@ class QueryBuilder
         return $result;
     }
 
-	/**
-	 * Order by
-	 *
-	 * @param array  $column
+    /**
+     * Order by
+     *
+     * @param array  $column
      * @param string $order Values: asc, desc
-	 * @return QueryBuilder
-	 */
-	public function orderBy(array $column, string $order = 'asc'): QueryBuilder
+     * @return QueryBuilder
+     */
+    public function orderBy(array $column, string $order = 'asc'): QueryBuilder
     {
-		$this->orderBy[] = ['column' => $column, 'order' => $order];
+        $this->orderBy[] = ['column' => $column, 'order' => $order];
 
-		return $this;
-	}
-
-	/**
-	 * Limit
-	 *
-	 * @param int $limit
-	 * @return QueryBuilder
-	 */
-	public function limit(int $limit): QueryBuilder
-    {
-        $this->limit = $limit;
-        
         return $this;
     }
 
-	/**
-	 * Offset
-	 *
-	 * @param int $offset
-	 * @return QueryBuilder
-	 */
-	public function offset(int $offset): QueryBuilder
+    /**
+     * Limit
+     *
+     * @param int $limit
+     * @return QueryBuilder
+     */
+    public function limit(int $limit): QueryBuilder
+    {
+        $this->limit = $limit;
+
+        return $this;
+    }
+
+    /**
+     * Offset
+     *
+     * @param int $offset
+     * @return QueryBuilder
+     */
+    public function offset(int $offset): QueryBuilder
     {
         $this->offset = $offset;
 
         return $this;
     }
 
-	/**
-	 * Get the model instance
-	 *
-	 * @return AbstractModel
+    /**
+     * Get the model instance
+     *
+     * @return AbstractModel
      */
     public function getModel(): AbstractModel
     {
-		return $this->model;
-	}
+        return $this->model;
+    }
 
-	/**
-	 * Paginate the results.
-	 *
-	 * @param mixed  $perPage
+    /**
+     * Paginate the results.
+     *
+     * @param mixed  $perPage
      * @param string $queryPageKey
-	 * @return Paginator
-	 */
-	public function paginate(mixed $perPage, string $queryPageKey = 'page' ): Paginator
+     * @return Paginator
+     */
+    public function paginate(mixed $perPage, string $queryPageKey = 'page'): Paginator
     {
         $currentPage = (int)($_GET[$queryPageKey] ?? 1);
         $total       = $this->count();

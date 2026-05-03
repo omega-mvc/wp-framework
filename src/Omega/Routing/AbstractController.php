@@ -1,8 +1,8 @@
 <?php
 
-namespace Omega\Routing;
+declare(strict_types=1);
 
-defined( 'ABSPATH' ) || exit;
+namespace Omega\Routing;
 
 /**
  * Controller class for handling WordPress requests.

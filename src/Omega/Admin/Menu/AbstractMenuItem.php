@@ -1,8 +1,8 @@
 <?php
 
-namespace Omega\Admin\Menu;
+declare(strict_types=1);
 
-defined( 'ABSPATH' ) || exit;
+namespace Omega\Admin\Menu;
 
 abstract class AbstractMenuItem
 {

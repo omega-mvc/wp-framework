@@ -32,8 +32,11 @@ class ForeignIdColumnDefinition extends ColumnDefinition
      * @param string|null $indexName
      * @return ForeignKeyDefinition
      */
-    public function constrained(?string $table = null, ?string $column = null, ?string $indexName = null): ForeignKeyDefinition
-    {
+    public function constrained(
+        ?string $table = null,
+        ?string $column = null,
+        ?string $indexName = null
+    ): ForeignKeyDefinition {
         $table ??= $this->getTableByColumn($this->name);
         $column ??= 'id';
 

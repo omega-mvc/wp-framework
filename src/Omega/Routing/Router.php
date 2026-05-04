@@ -146,6 +146,7 @@ class Router
                 },
                 'permission_callback' => function () use ($guards) {
                     foreach ($guards as $guard) {
+                        print_r($guards);
                         if (is_callable($guard)) {
                             if (!call_user_func($guard)) {
                                 return false;
@@ -175,29 +176,14 @@ class Router
      * @return WP_REST_Response|WP_Error|array
      * @throws Exception
      */
-    private function processRequest(array $action, mixed $request = []): WP_Error|WP_REST_Response|array
+    private function processRequest(array $action, mixed $request = null): mixed
     {
-        [$controllerClass, $method] = $action;
-
-        $reflector = new ReflectionClass($controllerClass);
-
-        $constructor = $reflector->getConstructor();
-
-        if ($constructor) {
-            $dependencies = $this->resolveDependencies($constructor);
-            $instance = $reflector->newInstanceArgs($dependencies);
-        } else {
-            $instance = new $controllerClass();
+        if ($this->routeType === 'admin') {
+            $this->processAdminRequest($action, $request);
+            return null;
         }
 
-        $called_method = $reflector->getMethod($method);
-        $method_dependencies = $this->resolveDependencies($called_method, $request);
-
-        if (is_wp_error($method_dependencies)) {
-            return $method_dependencies;
-        }
-
-        return call_user_func_array([$instance, $method], $method_dependencies);
+        return $this->processRestRequest($action, $request);
     }
 
     protected function parseUriParameters($uri)
@@ -212,53 +198,103 @@ class Router
     }
 
     /**
-     * Resolve dependencies for the given method.
+     * Resolve dependencies for the given method using reflection.
      *
-     * @param ReflectionMethod $method
-     * @param WP_REST_Request|null $request
-     * @return array|WP_Error
-     * @throws Exception
+     * Supports:
+     * - FormRequest (REST only)
+     * - WP_REST_Request injection
+     * - Container-based dependency resolution
+     * - Default parameter values
+     *
+     * @param ReflectionMethod $method Target method to resolve.
+     * @param WP_REST_Request|array|null $request Current request context.
+     * @return WP_Error|array Resolved arguments or WP_Error on validation failure.
+     * @throws Exception When a dependency cannot be resolved.
      */
-    protected function resolveDependencies(ReflectionMethod $method, ?WP_REST_Request $request = null): WP_Error|array
-    {
+    protected function resolveDependencies(
+        ReflectionMethod $method,
+        WP_REST_Request|array|null $request = null
+    ): WP_Error|array {
         $resolved = [];
 
         foreach ($method->getParameters() as $param) {
             $type = $param->getType();
+
+            // 🔹 Caso: parametro tipizzato (classe)
             if ($type && !$type->isBuiltin()) {
                 $className = $type->getName();
-                if (is_subclass_of($className, FormRequest::class) && $request) {
-                    $form_request = new $className($request);
-                    $form_request->validate();
 
-                    if ($form_request->fails()) {
-                        $errors = $form_request->errors();
+                /**
+                 * 🟢 FormRequest (solo REST)
+                 */
+                if (is_subclass_of($className, FormRequest::class)) {
+
+                    if (!$request instanceof WP_REST_Request) {
+                        return new WP_Error(
+                            'invalid_request',
+                            "FormRequest requires a WP_REST_Request instance for parameter '{$param->getName()}'."
+                        );
+                    }
+
+                    $formRequest = new $className($request);
+                    $formRequest->validate();
+
+                    if ($formRequest->fails()) {
+                        $errors = $formRequest->errors();
                         $firstError = reset($errors) ?: 'Validation error';
+
                         return new WP_Error('validation_error', $firstError, $errors);
                     }
 
-                    $resolved[] = $form_request;
-                } elseif ($className === '\\WP_REST_Request' || $className === 'WP_REST_Request') {
-                    if ($request) {
-                        $resolved[] = $request;
-                    } else {
-                        throw new Exception(
-                            "WP_REST_Request requested but no request available for parameter: {$param->getName()}"
-                        );
-                    }
-                } else {
-                    $resolved[] = ApplicationInstance::app($className);
+                    $resolved[] = $formRequest;
+                    continue;
                 }
-            } elseif ($param->isDefaultValueAvailable()) {
-                $resolved[] = $param->getDefaultValue();
-            } else {
-                throw new Exception("Cannot resolve dependency: {$param->getName()}");
+
+                /**
+                 * 🔵 WP_REST_Request injection
+                 */
+                if ($className === WP_REST_Request::class) {
+                    if ($request instanceof WP_REST_Request) {
+                        $resolved[] = $request;
+                        continue;
+                    }
+
+                    throw new Exception(
+                        "WP_REST_Request requested but no valid request available for parameter '{$param->getName()}'."
+                    );
+                }
+
+                /**
+                 * 🟣 Container resolution (DI)
+                 */
+                try {
+                    $resolved[] = ApplicationInstance::app($className);
+                    continue;
+                } catch (Exception $e) {
+                    throw new Exception(
+                        "Cannot resolve dependency '{$className}' for parameter '{$param->getName()}'."
+                    );
+                }
             }
+
+            /**
+             * 🟡 Default value fallback
+             */
+            if ($param->isDefaultValueAvailable()) {
+                $resolved[] = $param->getDefaultValue();
+                continue;
+            }
+
+            /**
+             * 🔴 Fallimento totale
+             */
+            throw new Exception(
+                "Cannot resolve parameter '{$param->getName()}' in method {$method->getName()}."
+            );
         }
 
         return $resolved;
     }
-
 
     public function prefix($prefix): static
     {
@@ -298,7 +334,10 @@ class Router
 
     public function guards($guards): static
     {
-        //TODO: fix this pass others Routes
+        if ($this->routeType === 'admin' && is_array($guards)) {
+            $guards = $guards[0] ?? 'manage_options';
+        }
+
         $this->guardStack[$this->groupDepth] = [
             'guards' => $guards,
             'depth'  => $this->groupDepth
@@ -351,18 +390,18 @@ class Router
 
     protected function applyGuards(): array
     {
-        if (!empty($this->guardStack)) {
-            // Filter guards that are at or below the current depth
-            $currentGuards = array_filter($this->guardStack, function ($item) {
-                return $item['depth'] < $this->groupDepth;
-            });
-
-            return array_map(function ($item) {
-                return $item['guards'];
-            }, $currentGuards);
+        if (empty($this->guardStack)) {
+            return [];
         }
 
-        return [];
+        $currentGuards = array_filter($this->guardStack, function ($item) {
+            return $item['depth'] < $this->groupDepth;
+        });
+
+        $guards = array_map(fn($item) => $item['guards'], $currentGuards);
+
+        // 🔥 FIX: flatten
+        return is_array($guards[0] ?? null) ? array_merge(...$guards) : $guards;
     }
 
     public function getRoutes(): array
@@ -376,5 +415,73 @@ class Router
         $instance->setPage($id);
 
         return $instance;
+    }
+
+    /**
+     * Handle REST request and return a valid API response.
+     *
+     * @param array $action Controller class and method.
+     * @param WP_REST_Request $request Incoming REST request.
+     * @return WP_REST_Response|WP_Error|array
+     * @throws Exception
+     */
+    private function processRestRequest(array $action, WP_REST_Request $request): WP_REST_Response|WP_Error|array
+    {
+        [$controllerClass, $method] = $action;
+
+        $reflector = new ReflectionClass($controllerClass);
+
+        $instance = $reflector->getConstructor()
+            ? $reflector->newInstanceArgs($this->resolveDependencies($reflector->getConstructor()))
+            : new $controllerClass();
+
+        $calledMethod = $reflector->getMethod($method);
+        $dependencies = $this->resolveDependencies($calledMethod, $request);
+
+        if (is_wp_error($dependencies)) {
+            return $dependencies;
+        }
+
+        $result = call_user_func_array([$instance, $method], $dependencies);
+
+        // 🔒 mai null nelle API
+        return $result ?? [];
+    }
+
+    /**
+     * Handle admin request (WordPress page rendering).
+     *
+     * @param array $action Controller class and method.
+     * @param mixed $request Optional request data (usually array).
+     * @return void
+     * @throws Exception
+     */
+    private function processAdminRequest(array $action, mixed $request = null): void
+    {
+        [$controllerClass, $method] = $action;
+
+        $reflector = new ReflectionClass($controllerClass);
+
+        $instance = $reflector->getConstructor()
+            ? $reflector->newInstanceArgs($this->resolveDependencies($reflector->getConstructor()))
+            : new $controllerClass();
+
+        $calledMethod = $reflector->getMethod($method);
+        $dependencies = $this->resolveDependencies($calledMethod, $request);
+
+        if (is_wp_error($dependencies)) {
+            echo '<div class="error"><p>' . esc_html($dependencies->get_error_message()) . '</p></div>';
+            return;
+        }
+
+        $result = call_user_func_array([$instance, $method], $dependencies);
+
+        if (is_string($result)) {
+            echo $result;
+        }
+
+        if (is_array($result)) {
+            echo '<pre>' . esc_html(print_r($result, true)) . '</pre>';
+        }
     }
 }

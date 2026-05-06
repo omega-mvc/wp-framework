@@ -52,7 +52,7 @@ class AdminServiceProvider extends ServiceProvider
             load_plugin_textdomain(
                 $this->app->getId(),
                 false,
-                $this->app->pluginRoot() . '/languages'
+                $this->app->getId() . '/languages'
             );
         }
     }

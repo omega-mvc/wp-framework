@@ -14,14 +14,26 @@ use function in_array;
 
 class Blueprint
 {
-    /** @var ColumnDefinition[] The columns that should be added to the table. */
+    /**
+     * The columns that should be added to the table.
+     *
+     * @var ColumnDefinition[]
+     */
     protected array $columns = [];
 
-    /** @var string The command that should be executed on the table. */
+    /**
+     * The command that should be executed on the table.
+     *
+     * @var string
+     */
     protected string $command = 'alter';
 
-    /** @var array The commands that should be executed on the table. */
-    protected array $commands = [];
+    /**
+     * The commands that should be executed on the table.
+     *
+     * @var array
+     */
+    protected $commands = [];
 
     public function __construct(protected string $table)
     {
@@ -49,13 +61,11 @@ class Blueprint
     }
 
     /**
-     * Generate single column sql.
      *
      * @param ColumnDefinition $column
-     * @return string
      *
      */
-    private function generateSingleColumnSql(ColumnDefinition $column): string
+    private function generateSingleColumnSql($column)
     {
         $type = $column->getType();
         $name = $column->getName();
@@ -106,17 +116,14 @@ class Blueprint
             $sql .= " DEFAULT '" . esc_sql($column->getDefault()) . "'";
         }
 
-        if (
-            $column->isAutoIncrement()
-            && in_array($type, ['bigInteger', 'unsignedBigInteger', 'bigIncrements'], true)
-        ) {
+        if ($column->isAutoIncrement() && in_array($type, ['bigInteger', 'unsignedBigInteger', 'bigIncrements'], true)) {
             $sql .= ' AUTO_INCREMENT';
         }
 
         return $sql;
     }
 
-    private function prepareColumns(): array
+    private function prepareColumns()
     {
         $columnsSql = [];
         $primaryKey = [];
@@ -165,7 +172,7 @@ class Blueprint
         return $columnsSql;
     }
 
-    public function tableExists(string $tableName): bool
+    public function tableExists($tableName)
     {
         global $wpdb;
 
@@ -174,7 +181,7 @@ class Blueprint
         return $exists !== null;
     }
 
-    private function columnExists(string $tableName, string $columnName): bool
+    private function columnExists($tableName, $columnName)
     {
         global $wpdb;
 
@@ -183,11 +190,47 @@ class Blueprint
         return $exists !== null;
     }
 
-    public function run(): void
+    private function indexExists($tableName, $indexName)
     {
         global $wpdb;
 
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW INDEX FROM `{$tableName}` WHERE Key_name = %s", $indexName));
+
+        return $exists !== null;
+    }
+
+    private function runAlterCommands($tableName)
+    {
+        global $wpdb;
+
+        foreach ($this->commands as $command) {
+            if (!is_array($command) || empty($command[0])) {
+                continue;
+            }
+
+            if ('dropColumn' === $command[0] && !empty($command[1])) {
+                $columnName = (string)$command[1];
+
+                if ($this->columnExists($tableName, $columnName)) {
+                    $wpdb->query("ALTER TABLE `$tableName` DROP COLUMN `$columnName`;");
+                }
+            }
+
+            if ('dropUnique' === $command[0] && !empty($command[1])) {
+                $indexName = (string)$command[1];
+
+                if ($this->indexExists($tableName, $indexName)) {
+                    $wpdb->query("ALTER TABLE `$tableName` DROP INDEX `$indexName`;");
+                }
+            }
+        }
+    }
+
+    public function run()
+    {
+        global $wpdb;
         if ($this->command === 'create') {
+
             $tableName = $wpdb->prefix . $this->table;
 
             if ($this->tableExists($tableName)) {
@@ -205,6 +248,8 @@ class Blueprint
         } else {
             $tableName = $wpdb->prefix . $this->table;
 
+            $this->runAlterCommands($tableName);
+
             foreach ($this->columns as $column) {
                 $columnName = $column->getName();
 
@@ -212,9 +257,7 @@ class Blueprint
                     $columnSql = $this->generateSingleColumnSql($column);
 
                     $afterColumn = $column->getAfter();
-                    $sql = "
-                        ALTER TABLE `$tableName` ADD $columnSql" . ($afterColumn ? " AFTER `$afterColumn`" : "") . ";
-                        ";
+                    $sql = "ALTER TABLE `$tableName` ADD $columnSql" . ($afterColumn ? " AFTER `$afterColumn`" : "") . ";";
                     $wpdb->query($sql);
                 }
             }
@@ -225,9 +268,10 @@ class Blueprint
      * Create a new auto-incrementing big integer (8-byte) column on the table.
      *
      * @param string $column
+     *
      * @return ColumnDefinition
      */
-    public function bigIncrements(string $column): ColumnDefinition
+    public function bigIncrements($column)
     {
         return $this->unsignedBigInteger($column, true);
     }
@@ -237,9 +281,10 @@ class Blueprint
      *
      * @param string $column
      * @param bool $autoIncrement
+     *
      * @return ColumnDefinition
      */
-    public function unsignedBigInteger(string $column, bool $autoIncrement = false): ColumnDefinition
+    public function unsignedBigInteger($column, $autoIncrement = false)
     {
         return $this->bigInteger($column, $autoIncrement, true);
     }
@@ -249,9 +294,10 @@ class Blueprint
      *
      * @param string $column
      * @param bool $autoIncrement
+     *
      * @return ColumnDefinition
      */
-    public function unsignedInteger(string $column, bool $autoIncrement = false): ColumnDefinition
+    public function unsignedInteger($column, $autoIncrement = false)
     {
         return $this->integer($column, $autoIncrement, true);
     }
@@ -262,8 +308,9 @@ class Blueprint
      * @param int|null $precision
      * @return Collection<int, ColumnDefinition>
      */
-    public function timestamps(?int $precision = null): Collection
+    public function timestamps($precision = null)
     {
+        //change timestamp to dateTime for wordpress compatibility
         return new Collection([
             $this->dateTime('created_at', $precision)->nullable(),
             $this->dateTime('updated_at', $precision)->nullable(),
@@ -275,9 +322,10 @@ class Blueprint
      *
      * @param string $column
      * @param int|null $precision
+     *
      * @return ColumnDefinition
      */
-    public function timestamp(string $column, ?int $precision = null): ColumnDefinition
+    public function timestamp($column, $precision = null)
     {
         $precision ??= $this->defaultTimePrecision();
 
@@ -291,34 +339,34 @@ class Blueprint
      * @param int|null $precision
      * @return ColumnDefinition
      */
-    public function dateTime(string $column, ?int $precision = null): ColumnDefinition
+    public function dateTime($column, $precision = null)
     {
         $precision ??= $this->defaultTimePrecision();
 
         return $this->addColumn('dateTime', $column, compact('precision'));
     }
 
-    public function text(string $column): ColumnDefinition
+    public function text($column)
     {
         return $this->addColumn('text', $column);
     }
 
-    public function longText(string $column): ColumnDefinition
+    public function longText($column)
     {
         return $this->addColumn('longText', $column);
     }
 
-    public function json(string $column): ColumnDefinition
+    public function json($column)
     {
         return $this->addColumn('json', $column);
     }
 
-    public function boolean(string $column): ColumnDefinition
+    public function boolean($column)
     {
         return $this->addColumn('boolean', $column);
     }
 
-    public function uuid(string $column): ColumnDefinition
+    public function uuid($column)
     {
         return $this->addColumn('string', $column, ['length' => 36]);
     }
@@ -337,6 +385,7 @@ class Blueprint
      * @param string $column
      * @param bool $autoIncrement
      * @param bool $unsigned
+     *
      * @return ColumnDefinition
      */
     public function bigInteger(string $column, bool $autoIncrement = false, bool $unsigned = false): ColumnDefinition
@@ -350,6 +399,7 @@ class Blueprint
      * @param string $column
      * @param bool $autoIncrement
      * @param bool $unsigned
+     *
      * @return ColumnDefinition
      */
     public function integer(string $column, bool $autoIncrement = false, bool $unsigned = false): ColumnDefinition
@@ -374,11 +424,11 @@ class Blueprint
     /**
      * Specify a foreign key for the table.
      *
-     * @param string|array $columns
+     * @param array|string $columns
      * @param string|null $name
      * @return ForeignKeyDefinition
      */
-    public function foreign(string|array $columns, ?string $name = null): ForeignKeyDefinition
+    public function foreign(array|string $columns, ?string $name = null): ForeignKeyDefinition
     {
         $foreignInstance = $this->columns[count($this->columns) - 1];
 
@@ -423,9 +473,10 @@ class Blueprint
      * @param string $type
      * @param string $name
      * @param array $parameters
+     *
      * @return ColumnDefinition
      */
-    public function addColumn(string $type, string $name, array $parameters = []): ColumnDefinition
+    public function addColumn($type, $name, array $parameters = [])
     {
         return $this->addColumnDefinition(new ColumnDefinition(
             array_merge(compact('type', 'name'), $parameters)
@@ -436,23 +487,31 @@ class Blueprint
      * Add a new column definition to the blueprint.
      *
      * @param ColumnDefinition $definition
+     *
      * @return ColumnDefinition
      */
-    protected function addColumnDefinition(ColumnDefinition $definition): ColumnDefinition
+    protected function addColumnDefinition($definition)
     {
         $this->columns[] = $definition;
 
         return $definition;
     }
 
-    public function getTable(): string
+    public function getTable()
     {
         return $this->table;
     }
 
-    public function dropColumn(string $column): static
+    public function dropColumn($column)
     {
         $this->commands[] = ['dropColumn', $column];
+
+        return $this;
+    }
+
+    public function dropUnique($index)
+    {
+        $this->commands[] = ['dropUnique', $index];
 
         return $this;
     }

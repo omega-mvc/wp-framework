@@ -8,6 +8,15 @@ use Omega\Facade\AbstractFacade;
 use Omega\Routing\Router;
 
 /**
+ * @category   Omega
+ * @package    Route
+ * @subpackage Facade
+ * @link       https://omega-mvc.github.io
+ * @author     Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version    1.0.0
+ *
  * @method static Router get(string $uri, array|string|callable|null $action = null)
  * @method static Router post(string $uri, array|string|callable|null $action = null)
  * @method static Router put(string $uri, array|string|callable|null $action = null)
@@ -21,6 +30,9 @@ use Omega\Routing\Router;
  */
 class Route extends AbstractFacade
 {
+    /**
+     * {@inheritdoc}
+     */
     public static function getFacadeAccessor(): string
     {
         return 'router';

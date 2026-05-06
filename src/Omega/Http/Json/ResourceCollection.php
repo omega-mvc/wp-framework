@@ -1,34 +1,69 @@
 <?php
 
+/**
+ * Part of Omega - Http Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
 declare(strict_types=1);
 
 namespace Omega\Http\Json;
 
 use Omega\Collection\Collection;
+use Omega\Database\Eloquent\AbstractModel;
 use Omega\Paginator\Paginator;
 
 use function array_merge;
 
+/**
+ * ResourceCollection
+ *
+ * Wraps a collection of models into resource representations with optional
+ * transformation, metadata handling, and pagination support.
+ *
+ * Provides a consistent JSON-ready structure for API responses while
+ * allowing per-item resource transformation and optional meta merging.
+ *
+ * @category   Omega
+ * @package    Http
+ * @subpackage Json
+ * @link       https://omega-mvc.github.io
+ * @author     Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version    1.0.0
+ */
 class ResourceCollection
 {
-    /** @var string|null The resource that this resource collects. */
+    /** @var string|null Fully qualified resource class used to transform items. */
     public ?string $collects = null;
 
-    /** @var Collection The collection of resources. */
+    /** @var Collection Underlying collection of items to be transformed. */
     public Collection $collection;
 
-    /** @var array Additional metadata for the resource collection. */
+    /** @var array Extra metadata attached to the collection response. */
     protected array $meta = [];
 
-    /** @var bool If true, meta attributes will be merged at the top level of the array. */
+    /** @var bool Merge meta into root level instead of nesting under "meta". */
     public bool $mergeMeta = false;
 
+    /** @var AbstractModel Model instance used for dynamic attribute resolution. */
+    protected AbstractModel $resource;
+
     /**
-     * Constructs a new resource collection.
+     * Create a new ResourceCollection instance.
      *
-     * @param Collection|Paginator $collection
-     * @param string|null          $collects
-     * @param array                $options
+     * Supports raw collections or paginated results and optionally applies
+     * a resource transformer class for each item.
+     *
+     * @param Collection|Paginator $collection Source data collection or paginator.
+     * @param string|null $collects Optional resource class for item transformation.
+     * @param array $options Configuration options (e.g. meta merging).
      */
     public function __construct(Collection|Paginator $collection, ?string $collects = null, array $options = [])
     {
@@ -50,9 +85,12 @@ class ResourceCollection
     }
 
     /**
-     * Get the collection of resources.
+     * Transform the underlying collection into an array of resources.
      *
-     * @return array
+     * If a resource class is defined, each item is transformed individually.
+     * Otherwise, raw collection data is returned.
+     *
+     * @return array Transformed collection data.
      */
     public function collection(): array
     {
@@ -68,12 +106,26 @@ class ResourceCollection
         return $resources;
     }
 
-    public function getMeta()
+    /**
+     * Retrieve metadata associated with the collection.
+     *
+     * @return array Collection metadata.
+     */
+    public function getMeta(): array
     {
         return $this->meta;
     }
 
-    public function appendMeta($data)
+    /**
+     * Append metadata to the given payload.
+     *
+     * Depending on configuration, metadata is either merged into the root
+     * structure or nested under a "meta" key.
+     *
+     * @param array $data Base response payload.
+     * @return array Payload enriched with metadata.
+     */
+    public function appendMeta(array $data): array
     {
         if (!empty($this->meta)) {
             if ($this->mergeMeta) {
@@ -87,9 +139,11 @@ class ResourceCollection
     }
 
     /**
-     * Transform the resource collection into an array.
+     * Convert the resource collection into a JSON-ready array structure.
      *
-     * @return array
+     * Includes transformed data and optional metadata.
+     *
+     * @return array Final serialized representation of the collection.
      */
     public function toArray(): array
     {
@@ -98,7 +152,16 @@ class ResourceCollection
         ]);
     }
 
-    public function __get($name)
+    /**
+     * Dynamically access attributes from the underlying model resource.
+     *
+     * Delegates property access to the associated AbstractModel instance
+     * if the requested key exists.
+     *
+     * @param string $name Attribute name.
+     * @return mixed|null Attribute value or null if not found.
+     */
+    public function __get(string $name)
     {
         if ($this->resource->keyExists($name)) {
             return $this->resource[$name];

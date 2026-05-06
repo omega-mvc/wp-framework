@@ -10,20 +10,49 @@ use ReflectionException;
 
 use function end;
 
+/**
+ * RouterBuilder
+ *
+ * Stateful routing builder responsible for constructing and grouping application routes.
+ *
+ * This class acts as a high-level interface over the underlying Router instances,
+ * managing route registration, grouping depth, and contextual routing state.
+ *
+ * It supports route grouping through an internal stack mechanism and delegates
+ * actual route registration to Router instances.
+ *
+ * Additionally, it integrates with the application container to trigger related
+ * side effects such as admin menu registration when defining specific routes.
+ *
+ * The builder is designed to be used during the application boot phase,
+ * where route files are dynamically loaded and executed.
+ */
 class RouterBuilder
 {
+    /** @var array<int, Router> Stack of active Router instances created during route building. */
     protected array $instances = [];
 
+    /** @var int Current nesting level of route groups. Used to manage grouped routing context. */
     protected int $groupDepth = 0;
 
+    /**
+     * RouterBuilder constructor.
+     *
+     * Initializes the builder with the application container instance.
+     *
+     * @param Application $app Application container used for service resolution.
+     */
     public function __construct(protected Application $app)
     {
     }
 
     /**
-     * Get instance
+     * Retrieve the current Router instance or create a new one.
      *
-     * @return Router
+     * If the builder is inside a route group, the last active Router instance is reused.
+     * Otherwise, a new Router instance is created and stored in the stack.
+     *
+     * @return Router Active router instance used for route registration.
      */
     protected function getInstance(): Router
     {
@@ -36,7 +65,13 @@ class RouterBuilder
         }
     }
 
-    public function prefix($prefix): Router
+    /**
+     * Define a URI prefix for the current route group or router context.
+     *
+     * @param string $prefix Route prefix applied to subsequent routes.
+     * @return Router The underlying router instance.
+     */
+    public function prefix(string $prefix): Router
     {
         $instance = $this->getInstance();
         $instance->prefix($prefix);
@@ -44,11 +79,18 @@ class RouterBuilder
         return $instance;
     }
 
-
     /**
+     * Register a WordPress admin page route.
+     *
+     * Also registers the page in the admin manager to ensure it appears
+     * in the WordPress admin interface when required.
+     *
+     * @param string $id Page identifier.
+     * @param array $options Optional configuration for the admin page.
+     * @return Router The underlying router instance.
      * @throws ReflectionException
      */
-    public function page($id, $options = []): Router
+    public function page(string $id, array $options = []): Router
     {
         $instance = $this->getInstance();
 
@@ -60,9 +102,14 @@ class RouterBuilder
     }
 
     /**
+     * Register a GET route.
+     *
+     * @param string $uri Route URI pattern.
+     * @param mixed $action Route handler or controller action.
+     * @return array Registered route definition.
      * @throws Exception
      */
-    public function get($uri, $action = null): array
+    public function get(string $uri, mixed $action = null): array
     {
         $instance = $this->getInstance();
 
@@ -70,9 +117,14 @@ class RouterBuilder
     }
 
     /**
+     * Register a POST route.
+     *
+     * @param string $uri Route URI pattern.
+     * @param mixed $action Route handler or controller action.
+     * @return array Registered route definition.
      * @throws Exception
      */
-    public function post($uri, $action = null): array
+    public function post(string $uri, mixed $action = null): array
     {
         $instance = $this->getInstance();
 
@@ -80,9 +132,14 @@ class RouterBuilder
     }
 
     /**
+     * Register a PUT route.
+     *
+     * @param string $uri Route URI pattern.
+     * @param mixed $action Route handler or controller action.
+     * @return array Registered route definition.
      * @throws Exception
      */
-    public function put($uri, $action = null): array
+    public function put(string $uri, mixed $action = null): array
     {
         $instance = $this->getInstance();
 
@@ -90,9 +147,14 @@ class RouterBuilder
     }
 
     /**
+     * Register a PATCH route.
+     *
+     * @param string $uri Route URI pattern.
+     * @param mixed $action Route handler or controller action.
+     * @return array Registered route definition.
      * @throws Exception
      */
-    public function patch($uri, $action = null): array
+    public function patch(string $uri, mixed $action = null): array
     {
         $instance = $this->getInstance();
 
@@ -100,20 +162,39 @@ class RouterBuilder
     }
 
     /**
+     * Register a DELETE route.
+     *
+     * @param string $uri Route URI pattern.
+     * @param mixed $action Route handler or controller action.
+     * @return array Registered route definition.
      * @throws Exception
      */
-    public function delete($uri, $action = null): array
+    public function delete(string $uri, mixed $action = null): array
     {
         $instance = $this->getInstance();
 
         return $instance->addRoute('DELETE', $uri, $action);
     }
 
+    /**
+     * Increase the routing group nesting level.
+     *
+     * Used internally when entering a grouped routing context.
+     *
+     * @return void
+     */
     public function increaseGroupDepth(): void
     {
         $this->groupDepth++;
     }
 
+    /**
+     * Decrease the routing group nesting level.
+     *
+     * Used internally when exiting a grouped routing context.
+     *
+     * @return void
+     */
     public function decreaseGroupDepth(): void
     {
         $this->groupDepth--;

@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace Omega\Config\Facades;
 
-use Closure;
 use Omega\Config\SettingsRepository;
 use Omega\Facade\AbstractFacade;
 
@@ -31,21 +30,31 @@ use Omega\Facade\AbstractFacade;
  * Designed primarily for WordPress integration, it enables centralized access to plugin or
  * application settings without requiring direct dependency injection.
  *
+ * @category   Omega
+ * @package    Config
+ * @subpackage Facades
+ * @link       https://omega-mvc.github.io
+ * @author     Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version    1.0.0
+ *
  * @method static bool has(string $key)
- * @method static mixed get(array|string $key, mixed $default = null)
- * @method static array getMany(array $keys)
- * @method static string string(string $key, Closure|string|null $default = null)
- * @method static int integer(string $key, Closure|int|null $default = null)
- * @method static float float(string $key, Closure|float|null $default = null)
- * @method static bool boolean(string $key, Closure|bool|null $default = null)
- * @method static array array(string $key, Closure|array|null $default = null)
- * @method static void update(string $key, mixed $value)
- * @method static array all()
+ * @method static mixed get(string $key, mixed $default = null)
+ * @method static string string(string $key, ?string $default = null)
+ * @method static bool boolean(string $key, bool|string $default = false)
+ * @method static int integer(string $key, ?int $default = null)
+ * @method static array getAll()
+ * @method static bool update(string $key, mixed $value)
+ * @method static bool delete(string $key)
  *
  * @see SettingsRepository
  */
 class Settings extends AbstractFacade
 {
+    /**
+     * {@inheritdoc}
+     */
     public static function getFacadeAccessor(): string
     {
         return 'settings';

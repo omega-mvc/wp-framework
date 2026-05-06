@@ -120,7 +120,7 @@ class ConfigRepository
      *
      * @return array<int|string, mixed> The full configuration dataset.
      */
-    public function all(): array
+    public function getAll(): array
     {
         return $this->config;
     }

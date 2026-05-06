@@ -155,7 +155,7 @@ class SettingsRepository
      *
      * @return bool True if the configuration was successfully saved, false otherwise.
      */
-    public function save(): bool
+    private function save(): bool
     {
         return update_option("{$this->app->getIdAsUnderscore()}_settings", $this->config);
     }
@@ -247,7 +247,7 @@ class SettingsRepository
      *
      * @return array The entire configuration set.
      */
-    public function all(): array
+    public function getAll(): array
     {
         return $this->config;
     }

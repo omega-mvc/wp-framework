@@ -28,11 +28,9 @@ use Omega\View\View as ViewClass;
  *
  * Example:
  *
+ * ```php
  * View::make('dashboard.index', ['user' => $user]);
- *
- * @method static void make(string $view, array $data = [])
- *
- * @see ViewClass
+ * ```
  *
  * @category   Omega
  * @package    View
@@ -42,16 +40,15 @@ use Omega\View\View as ViewClass;
  * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
  * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
  * @version    1.0.0
+ *
+ * @method static void make(string $view, array $data = [])
+ *
+ * @see ViewClass
  */
 class View extends AbstractFacade
 {
     /**
-     * Get the container binding key for the view service.
-     *
-     * This value is used by the base facade class to resolve
-     * the underlying concrete instance from the application container.
-     *
-     * @return string The registered container service identifier.
+     * {@inheritdoc}
      */
     public static function getFacadeAccessor(): string
     {

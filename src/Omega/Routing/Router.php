@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * Part of Omega - Http Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
+/** @noinspection PhpUnnecessaryCurlyVarSyntaxInspection */
+
 declare(strict_types=1);
 
 namespace Omega\Routing;
@@ -31,45 +43,88 @@ use function preg_match_all;
 use function register_rest_route;
 use function reset;
 use function rest_ensure_response;
+use function sprintf;
 use function str_replace;
 use function trim;
 
+/**
+ * Core routing engine responsible for request dispatching and execution.
+ *
+ * This class handles route registration, grouping context, guard resolution,
+ * and request execution for both REST API and WordPress admin environments.
+ *
+ * It acts as the central execution layer between defined routes and their
+ * corresponding controller actions, using reflection-based dependency injection.
+ *
+ * The Router supports:
+ * - REST API routing via `register_rest_route`
+ * - Admin page routing via `add_submenu_page`
+ * - Route grouping with nested prefix and guard stacks
+ * - Automatic dependency resolution for controller methods
+ *
+ * It is designed to work in conjunction with RouterBuilder and the application
+ * container, forming the runtime execution layer of the routing system.
+ *
+ * @category  Omega
+ * @package   Routing
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
 class Router
 {
+    /** @var array<int, array<string, mixed>> Registered route definitions. */
     protected array $routes = [];
 
+    /** @var array<int, array{prefix:string, depth:int}> Stack of route prefixes for grouped routing. */
     protected array $prefixStack = [];
 
+    /** @var array<int, array{guards:mixed, depth:int}> Stack of authorization guards per group level. */
     protected array $guardStack = [];
 
+    /** @var string Current routing context type: 'rest' or 'admin'. */
     protected string $routeType = 'rest';
 
-    protected $page;
+    /** @var string|null Current admin page identifier used for submenu routing. */
+    protected ?string $page = null;
 
+    /** @var int Current nesting level for route groups. */
     protected int $groupDepth = 0;
 
+    /** @var array Additional configuration options for admin page routing. */
     protected array $pageOptions = [];
 
     /**
      * Router constructor.
      *
-     * @param RouterBuilder $routerBuilder
-     * @param Router|null $parentRouter
+     * Initializes the router instance and optionally links it to a parent router
+     * when working with nested routing groups.
+     *
+     * @param RouterBuilder $routerBuilder Router builder used to create and manage routes.
+     * @param Router|null   $parentRouter   Optional parent router for nested routing contexts.
      */
-    public function __construct(protected RouterBuilder $routerBuilder, protected ?Router $parentRouter = null)
-    {
+    public function __construct(
+        protected RouterBuilder $routerBuilder,
+        protected ?Router $parentRouter = null
+    ) {
     }
 
     /**
-     * @param $httpMethod
-     * @param $uri
-     * @param $action
-     * @return array
-     * @throws Exception
+     * Add a new route to the router and register it based on the current route type.
+     *
+     * Supports both REST and admin routes. The URI is normalized and prefixed
+     * according to the current routing group context.
+     *
+     * @param string|array $httpMethod HTTP method(s) for the route (GET, POST, etc.).
+     * @param string       $uri        Route URI pattern.
+     * @param mixed        $action     Controller action definition [Class, method].
+     * @return array Registered route definition.
+     * @throws Exception If route registration fails.
      */
-    public function addRoute($httpMethod, $uri, $action): array
+    public function addRoute(string|array $httpMethod, string $uri, mixed $action): array
     {
-
         $uri = $this->parseUriParameters($uri);
         $prefix = trim($this->applyPrefix(), '/');
         $guards = $this->applyGuards();
@@ -89,12 +144,17 @@ class Router
     }
 
     /**
-     * @param $action
-     * @param $path
+     * Register an admin route inside WordPress admin menu system.
+     *
+     * Creates a submenu page and binds the route execution logic to it.
+     * Access control is determined by the first resolved guard.
+     *
+     * @param mixed  $action Controller action [Class, method].
+     * @param string $path   Full resolved admin path for the route.
      * @return void
-     * @throws Exception
+     * @throws Exception If route processing fails.
      */
-    protected function registerAdminRoute($action, $path): void
+    protected function registerAdminRoute(mixed $action, string $path): void
     {
         $firstGuard = 'manage_options';
         $currentGuards = $this->applyGuards();
@@ -126,7 +186,28 @@ class Router
         // } );
     }
 
-    protected function registerRestRoute($prefix, $uri, $action, $guards, $httpMethod = 'GET'): void
+    /**
+     * Register a REST API route using WordPress register_rest_route.
+     *
+     * Attaches a callback that resolves dependencies, executes the controller action,
+     * and normalizes the response into a WP REST response or WP_Error.
+     *
+     * Permission checks are evaluated using guards (callables or capability strings).
+     *
+     * @param string       $prefix     API namespace/prefix.
+     * @param string       $uri        Route URI pattern.
+     * @param mixed        $action     Controller action [Class, method].
+     * @param array        $guards     List of authorization rules (capabilities or callbacks).
+     * @param string       $httpMethod HTTP method (GET, POST, etc.).
+     * @return void
+     */
+    protected function registerRestRoute(
+        string $prefix,
+        string $uri,
+        mixed $action,
+        array $guards,
+        string $httpMethod = 'GET'
+    ): void
     {
         register_rest_route(
             $prefix,
@@ -168,15 +249,14 @@ class Router
     }
 
     /**
-     * Process the request and call the appropriate controller method.
+     * Process a controller request and dispatch it to REST or Admin handler.
      *
-     * @param array $action
-     * @param mixed $request
-     *
-     * @return WP_REST_Response|WP_Error|array
-     * @throws Exception
+     * @param array $action  Controller action [class, method].
+     * @param mixed $request Optional request payload or WP_REST_Request.
+     * @return array|null|WP_REST_Response|WP_Error
+     * @throws Exception If request processing fails.
      */
-    private function processRequest(array $action, mixed $request = null): mixed
+    private function processRequest(array $action, mixed $request = null): array|null|WP_REST_Response|WP_Error
     {
         if ($this->routeType === 'admin') {
             $this->processAdminRequest($action, $request);
@@ -186,7 +266,13 @@ class Router
         return $this->processRestRequest($action, $request);
     }
 
-    protected function parseUriParameters($uri)
+    /**
+     * Convert URI parameters in `{param}` format into regex named capture groups.
+     *
+     * @param mixed $uri Route URI containing optional placeholders.
+     * @return mixed Normalized URI regex pattern.
+     */
+    protected function parseUriParameters(mixed $uri): mixed
     {
         preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $uri, $matches);
 
@@ -198,37 +284,30 @@ class Router
     }
 
     /**
-     * Resolve dependencies for the given method using reflection.
+     * Resolve method dependencies using reflection and IoC container.
      *
-     * Supports:
-     * - FormRequest (REST only)
-     * - WP_REST_Request injection
-     * - Container-based dependency resolution
-     * - Default parameter values
+     * Supports FormRequest validation, WP_REST_Request injection,
+     * container-based resolution and default parameter values.
      *
-     * @param ReflectionMethod $method Target method to resolve.
+     * @param ReflectionMethod        $method  Target method to resolve.
      * @param WP_REST_Request|array|null $request Current request context.
-     * @return WP_Error|array Resolved arguments or WP_Error on validation failure.
-     * @throws Exception When a dependency cannot be resolved.
+     * @return WP_Error|array Resolved dependency arguments.
+     * @throws Exception If a dependency cannot be resolved.
      */
     protected function resolveDependencies(
         ReflectionMethod $method,
         WP_REST_Request|array|null $request = null
-    ): WP_Error|array {
+    ): WP_Error|array
+    {
         $resolved = [];
 
         foreach ($method->getParameters() as $param) {
             $type = $param->getType();
 
-            // 🔹 Caso: parametro tipizzato (classe)
             if ($type && !$type->isBuiltin()) {
                 $className = $type->getName();
 
-                /**
-                 * 🟢 FormRequest (solo REST)
-                 */
                 if (is_subclass_of($className, FormRequest::class)) {
-
                     if (!$request instanceof WP_REST_Request) {
                         return new WP_Error(
                             'invalid_request',
@@ -250,9 +329,6 @@ class Router
                     continue;
                 }
 
-                /**
-                 * 🔵 WP_REST_Request injection
-                 */
                 if ($className === WP_REST_Request::class) {
                     if ($request instanceof WP_REST_Request) {
                         $resolved[] = $request;
@@ -260,43 +336,51 @@ class Router
                     }
 
                     throw new Exception(
-                        "WP_REST_Request requested but no valid request available for parameter '{$param->getName()}'."
+                        sprintf(
+                            "WP_REST_Request requested but no valid request available for parameter '%s'.",
+                            $param->getName()
+                        )
                     );
                 }
 
-                /**
-                 * 🟣 Container resolution (DI)
-                 */
                 try {
                     $resolved[] = ApplicationInstance::app($className);
                     continue;
-                } catch (Exception $e) {
+                } catch (Exception) {
                     throw new Exception(
-                        "Cannot resolve dependency '{$className}' for parameter '{$param->getName()}'."
+                        sprintf(
+                            "Cannot resolve dependency '%s' for parameter '%s'.",
+                            $className,
+                            $param->getName()
+                        )
                     );
                 }
             }
 
-            /**
-             * 🟡 Default value fallback
-             */
             if ($param->isDefaultValueAvailable()) {
                 $resolved[] = $param->getDefaultValue();
                 continue;
             }
 
-            /**
-             * 🔴 Fallimento totale
-             */
             throw new Exception(
-                "Cannot resolve parameter '{$param->getName()}' in method {$method->getName()}."
+                sprintf(
+                    "Cannot resolve parameter '%s' in method %s.",
+                    $param->getName(),
+                    $method->getName()
+                )
             );
         }
 
         return $resolved;
     }
 
-    public function prefix($prefix): static
+    /**
+     * Set a route prefix scoped to the current group depth.
+     *
+     * @param mixed $prefix Route prefix string.
+     * @return static
+     */
+    public function prefix(mixed $prefix): static
     {
         $this->prefixStack[$this->groupDepth] = [
             'prefix' => trim($prefix, '/'),
@@ -305,6 +389,14 @@ class Router
         return $this;
     }
 
+    /**
+     * Define a grouped routing context with shared prefix and guards.
+     *
+     * Routes defined inside the callback inherit current group configuration.
+     *
+     * @param callable $callback Route definition callback.
+     * @return static
+     */
     public function group(callable $callback): static
     {
         $this->routerBuilder->increaseGroupDepth();
@@ -332,7 +424,15 @@ class Router
         return $this;
     }
 
-    public function guards($guards): static
+    /**
+     * Assign middleware-like guards to the current route/group.
+     *
+     * In admin context, only the first guard is used as required capability.
+     *
+     * @param mixed $guards Single guard, array of guards or callable permission rules.
+     * @return static
+     */
+    public function guards(mixed $guards): static
     {
         if ($this->routeType === 'admin' && is_array($guards)) {
             $guards = $guards[0] ?? 'manage_options';
@@ -346,7 +446,15 @@ class Router
         return $this;
     }
 
-    public function setPage($page): static
+    /**
+     * Set the current admin page identifier and switch to admin routing mode.
+     *
+     * Propagates the page context to parent router if available.
+     *
+     * @param mixed $page Page identifier (slug or hook name).
+     * @return static
+     */
+    public function setPage(mixed $page): static
     {
         $this->page = $page;
         $this->admin();
@@ -355,6 +463,11 @@ class Router
         return $this;
     }
 
+    /**
+     * Switch router mode to REST API routing.
+     *
+     * @return static
+     */
     public function rest(): static
     {
         $this->routeType = 'rest';
@@ -362,6 +475,11 @@ class Router
         return $this;
     }
 
+    /**
+     * Switch router mode to WordPress admin routing.
+     *
+     * @return static
+     */
     public function admin(): static
     {
         $this->routeType = 'admin';
@@ -369,10 +487,17 @@ class Router
         return $this;
     }
 
+    /**
+     * Build the full route prefix based on the current group stack.
+     *
+     * Prefixes are concatenated respecting group depth hierarchy.
+     *
+     * @return string Resolved route prefix.
+     */
     protected function applyPrefix(): string
     {
         if (!empty($this->prefixStack)) {
-            // Filter prefixes that are at or below the current depth
+
             $currentPrefixes = array_filter($this->prefixStack, function ($item) {
                 return $item['depth'] < $this->groupDepth;
             });
@@ -382,12 +507,20 @@ class Router
             }, $currentPrefixes);
 
             $fullPrefix = implode('/', $prefixes);
+
             return '/' . $fullPrefix;
         }
 
         return '/';
     }
 
+    /**
+     * Resolve active guards for the current route group.
+     *
+     * Flattens nested guard definitions and filters by group depth.
+     *
+     * @return array List of resolved guards.
+     */
     protected function applyGuards(): array
     {
         if (empty($this->guardStack)) {
@@ -400,16 +533,31 @@ class Router
 
         $guards = array_map(fn($item) => $item['guards'], $currentGuards);
 
-        // 🔥 FIX: flatten
-        return is_array($guards[0] ?? null) ? array_merge(...$guards) : $guards;
+        return is_array($guards[0] ?? null)
+            ? array_merge(...$guards)
+            : $guards;
     }
 
+    /**
+     * Retrieve all registered routes.
+     *
+     * @return array List of defined routes.
+     */
     public function getRoutes(): array
     {
         return $this->routes;
     }
 
-    public function page($id, array $options = []): Router
+    /**
+     * Create a new router instance bound to an admin page context.
+     *
+     * Useful for nested admin routing groups.
+     *
+     * @param mixed $id Page identifier.
+     * @param array $options Optional page configuration.
+     * @return Router New router instance.
+     */
+    public function page(mixed $id, array $options = []): Router
     {
         $instance = new self($this->routerBuilder, $this);
         $instance->setPage($id);
@@ -418,12 +566,14 @@ class Router
     }
 
     /**
-     * Handle REST request and return a valid API response.
+     * Handle REST request execution and return API response.
+     *
+     * Resolves controller dependencies, executes method and normalizes output.
      *
      * @param array $action Controller class and method.
-     * @param WP_REST_Request $request Incoming REST request.
-     * @return WP_REST_Response|WP_Error|array
-     * @throws Exception
+     * @param WP_REST_Request $request Incoming REST request instance.
+     * @return WP_REST_Response|WP_Error|array Normalized API response.
+     * @throws Exception If controller resolution fails.
      */
     private function processRestRequest(array $action, WP_REST_Request $request): WP_REST_Response|WP_Error|array
     {
@@ -444,17 +594,18 @@ class Router
 
         $result = call_user_func_array([$instance, $method], $dependencies);
 
-        // 🔒 mai null nelle API
         return $result ?? [];
     }
 
     /**
-     * Handle admin request (WordPress page rendering).
+     * Handle admin request execution and render output directly.
+     *
+     * Executes controller method and prints result as HTML or debug output.
      *
      * @param array $action Controller class and method.
-     * @param mixed $request Optional request data (usually array).
+     * @param mixed $request Optional request payload.
      * @return void
-     * @throws Exception
+     * @throws Exception If controller resolution fails.
      */
     private function processAdminRequest(array $action, mixed $request = null): void
     {

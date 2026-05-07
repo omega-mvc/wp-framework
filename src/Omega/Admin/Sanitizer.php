@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * Part of Omega - Admin Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
 declare(strict_types=1);
 
 namespace Omega\Admin;
@@ -13,15 +23,30 @@ use function sanitize_text_field;
 use function sanitize_textarea_field;
 use function wp_unslash;
 
+/**
+ * Utility class for sanitizing user input using WordPress sanitization helpers.
+ *
+ * Provides typed sanitization methods for common scalar values and request data,
+ * ensuring safe normalization of admin, REST, and form inputs.
+ *
+ * @category  Omega
+ * @package   Admin
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
 class Sanitizer
 {
     /**
      * Sanitize a boolean value.
      *
-     * Accepts true, false, 1, 0, 'true', 'false', '1', '0', 'yes', 'no' etc.
+     * Accepts common truthy and falsy values such as:
+     * true, false, 1, 0, 'true', 'false', 'yes', and 'no'.
      *
-     * @param mixed $value
-     * @return bool
+     * @param mixed $value Value to sanitize
+     * @return bool Sanitized boolean value
      */
     public static function boolean(mixed $value): bool
     {
@@ -29,11 +54,13 @@ class Sanitizer
     }
 
     /**
-     * Sanitize a text string (strips tags, extra whitespace).
+     * Sanitize a plain text string.
      *
-     * @param mixed $value
-     * @param string $default
-     * @return string
+     * Removes HTML tags, normalizes whitespace, and unslashes input values.
+     *
+     * @param mixed $value Value to sanitize
+     * @param string $default Default value returned when input is null
+     * @return string Sanitized string value
      */
     public static function string(mixed $value, string $default = ''): string
     {
@@ -45,11 +72,13 @@ class Sanitizer
     }
 
     /**
-     * Sanitize a textarea value (preserves newlines).
+     * Sanitize textarea content while preserving line breaks.
      *
-     * @param mixed $value
-     * @param string $default
-     * @return string
+     * Removes unsafe content and unslashes input values.
+     *
+     * @param mixed $value Value to sanitize
+     * @param string $default Default value returned when input is null
+     * @return string Sanitized textarea value
      */
     public static function textarea(mixed $value, string $default = ''): string
     {
@@ -63,9 +92,9 @@ class Sanitizer
     /**
      * Sanitize an integer value.
      *
-     * @param mixed $value
-     * @param int $default
-     * @return int
+     * @param mixed $value Value to sanitize
+     * @param int $default Default value returned when input is empty
+     * @return int Sanitized integer value
      */
     public static function integer(mixed $value, int $default = 0): int
     {
@@ -77,11 +106,11 @@ class Sanitizer
     }
 
     /**
-     * Sanitize a float value.
+     * Sanitize a floating-point value.
      *
-     * @param mixed $value
-     * @param float $default
-     * @return float
+     * @param mixed $value Value to sanitize
+     * @param float $default Default value returned when input is empty
+     * @return float Sanitized float value
      */
     public static function float(mixed $value, float $default = 0.0): float
     {
@@ -95,9 +124,9 @@ class Sanitizer
     /**
      * Sanitize an email address.
      *
-     * @param mixed $value
-     * @param string $default
-     * @return string
+     * @param mixed $value Value to sanitize
+     * @param string $default Default value returned when sanitization fails
+     * @return string Sanitized email address
      */
     public static function email(mixed $value, string $default = ''): string
     {
@@ -107,11 +136,13 @@ class Sanitizer
     }
 
     /**
-     * Sanitize a URL for use in database or redirects (does not escape for HTML output).
+     * Sanitize a URL for storage or redirects.
      *
-     * @param mixed $value
-     * @param string $default
-     * @return string
+     * Does not escape the value for HTML output.
+     *
+     * @param mixed $value Value to sanitize
+     * @param string $default Default value returned when sanitization fails
+     * @return string Sanitized URL value
      */
     public static function url(mixed $value, string $default = ''): string
     {
@@ -121,10 +152,12 @@ class Sanitizer
     }
 
     /**
-     * Sanitize each element of an array as a text string.
+     * Sanitize each element of an array as a plain text string.
      *
-     * @param mixed $value
-     * @return array
+     * Non-array values return an empty array.
+     *
+     * @param mixed $value Value to sanitize
+     * @return array Sanitized array of strings
      */
     public static function arrayOfStrings(mixed $value): array
     {
@@ -136,12 +169,21 @@ class Sanitizer
     }
 
     /**
-     * Sanitize a value from a request param, applying the given type.
+     * Sanitize and cast a value using the specified type.
      *
-     * @param mixed $value
-     * @param string $type 'string' | 'boolean' | 'integer' | 'float' | 'email' | 'url' | 'textarea'
-     * @param mixed $default
-     * @return mixed
+     * Supported types:
+     * - string
+     * - boolean
+     * - integer
+     * - float
+     * - email
+     * - url
+     * - textarea
+     *
+     * @param mixed $value Value to sanitize
+     * @param string $type Sanitization type identifier
+     * @param mixed $default Default value used when sanitization fails
+     * @return mixed Sanitized value
      */
     public static function cast(mixed $value, string $type, mixed $default = null): mixed
     {

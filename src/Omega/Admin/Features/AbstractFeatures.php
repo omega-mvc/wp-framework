@@ -12,31 +12,38 @@
 
 declare(strict_types=1);
 
-namespace Omega\Admin\Facade;
+namespace Omega\Admin\Features;
 
-use Omega\Facade\AbstractFacade;
+use Omega\Application\Application;
 
 /**
+ * Base class for admin feature integrations.
+ *
+ * Provides access to the current application instance and serves
+ * as the foundation for WordPress or third-party admin integrations.
+ *
  * @category   Omega
  * @package    Admin
- * @subpackage Facade
+ * @subpackage Features
  * @link       https://omega-mvc.github.io
  * @author     Adriano Giovannini <agisoftt@gmail.com>
  * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
  * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
  * @version    1.0.0
- *
- * @method static void addHiddenNoticesPage(string $id)
- *
- * @see \Omega\Admin\AdminManager
  */
-class AdminManager extends AbstractFacade
+abstract class AbstractFeatures implements FeaturesInterface
 {
+    /**
+     * Create a new WooCommerce integration instance.
+     *
+     * @param Application $app The current application instance.
+     */
+    public function __construct(protected Application $app)
+    {
+    }
+
     /**
      * {@inheritdoc}
      */
-    public static function getFacadeAccessor(): string
-    {
-        return 'admin.manager';
-    }
+    abstract public function init(): void;
 }

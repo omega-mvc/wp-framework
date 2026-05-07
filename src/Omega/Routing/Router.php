@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Part of Omega - Http Package.
+ * Part of Omega - Routing Package.
  *
  * @link      https://omega-mvc.github.io
  * @author    Adriano Giovannini <agisoftt@gmail.com>
@@ -207,8 +207,7 @@ class Router
         mixed $action,
         array $guards,
         string $httpMethod = 'GET'
-    ): void
-    {
+    ): void {
         register_rest_route(
             $prefix,
             $uri,
@@ -297,8 +296,7 @@ class Router
     protected function resolveDependencies(
         ReflectionMethod $method,
         WP_REST_Request|array|null $request = null
-    ): WP_Error|array
-    {
+    ): WP_Error|array {
         $resolved = [];
 
         foreach ($method->getParameters() as $param) {
@@ -497,7 +495,6 @@ class Router
     protected function applyPrefix(): string
     {
         if (!empty($this->prefixStack)) {
-
             $currentPrefixes = array_filter($this->prefixStack, function ($item) {
                 return $item['depth'] < $this->groupDepth;
             });

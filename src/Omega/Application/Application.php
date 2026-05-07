@@ -357,19 +357,6 @@ class Application extends Container
     }
 
     /**
-     * Load translation definitions from the application resources.
-     *
-     * @return array Translation key-value pairs
-     */
-    public function getTranslations(): array
-    {
-        $base = $this->getBasePath();
-        $path = "$base/resources/lang/translations.php";
-
-        return include $path;
-    }
-
-    /**
      * Get the settings repository instance.
      *
      * @return SettingsRepository Settings service instance

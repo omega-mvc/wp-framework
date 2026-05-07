@@ -36,6 +36,8 @@ use function sanitize_text_field;
  */
 class ConfigRepository
 {
+    private array $index = [];
+
     /**
      * ConfigRepository constructor.
      *
@@ -45,6 +47,56 @@ class ConfigRepository
      */
     public function __construct(protected array $config)
     {
+        $this->buildIndex($this->config);
+    }
+
+    private function buildIndex(array $data, string $prefix = ''): void
+    {
+        foreach ($data as $key => $value) {
+            $fullKey = $prefix === ''
+                ? (string)$key
+                : $prefix . '.' . $key;
+
+            if (is_array($value)) {
+                $this->buildIndex($value, $fullKey);
+                continue;
+            }
+
+            $this->index[$fullKey] = $value;
+        }
+    }
+
+    private function resolveFromIndex(string $key): mixed
+    {
+        foreach ($this->normalizeKey($key) as $variant) {
+            if (isset($this->index[$variant])) {
+                return $this->index[$variant];
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeKey(string $key): array
+    {
+        return [
+            $key,
+            str_replace('.', '_', $key),
+            str_replace('_', '.', $key),
+        ];
+    }
+
+    private function traverseArray(array $data, array $segments, mixed $default): mixed
+    {
+        foreach ($segments as $segment) {
+            if (!isset($data[$segment])) {
+                return $default;
+            }
+
+            $data = $data[$segment];
+        }
+
+        return $data;
     }
 
     /**
@@ -59,18 +111,35 @@ class ConfigRepository
      */
     public function get(string $name, mixed $default = null): mixed
     {
-        $names = explode('.', $name);
-        $config = $this->config;
+        // 1. prova accesso diretto da index (velocissimo)
+        $value = $this->resolveFromIndex($name);
 
-        foreach ($names as $name) {
-            if (isset($config[$name])) {
-                $config = $config[$name];
-            } else {
-                return $default;
-            }
+        if ($value !== null) {
+            return $value;
         }
 
-        return $config;
+        // 2. fallback: dot notation classica
+        $value = $this->traverseArray($this->config, explode('.', $name), $default);
+
+        if ($value !== $default) {
+            return $value;
+        }
+
+        // 3. fallback intelligente: underscore alias
+        $underscoreKey = str_replace('.', '_', $name);
+
+        $value = $this->resolveFromIndex($underscoreKey);
+
+        if ($value !== null) {
+            return $value;
+        }
+
+        return $default;
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->get($key, '__missing__') !== '__missing__';
     }
 
     /**

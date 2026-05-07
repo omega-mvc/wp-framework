@@ -63,6 +63,8 @@ class Container
         }
 
         $this->instances[$abstract] = $instance;
+
+        return $instance;
     }
 
     /**

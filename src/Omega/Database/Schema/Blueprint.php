@@ -116,7 +116,10 @@ class Blueprint
             $sql .= " DEFAULT '" . esc_sql($column->getDefault()) . "'";
         }
 
-        if ($column->isAutoIncrement() && in_array($type, ['bigInteger', 'unsignedBigInteger', 'bigIncrements'], true)) {
+        if (
+            $column->isAutoIncrement()
+            && in_array($type, ['bigInteger', 'unsignedBigInteger', 'bigIncrements'], true)
+        ) {
             $sql .= ' AUTO_INCREMENT';
         }
 
@@ -230,7 +233,6 @@ class Blueprint
     {
         global $wpdb;
         if ($this->command === 'create') {
-
             $tableName = $wpdb->prefix . $this->table;
 
             if ($this->tableExists($tableName)) {
@@ -257,7 +259,11 @@ class Blueprint
                     $columnSql = $this->generateSingleColumnSql($column);
 
                     $afterColumn = $column->getAfter();
-                    $sql = "ALTER TABLE `$tableName` ADD $columnSql" . ($afterColumn ? " AFTER `$afterColumn`" : "") . ";";
+                    $sql = "ALTER TABLE `$tableName` ADD $columnSql"
+                        . ($afterColumn
+                            ? " AFTER `$afterColumn`"
+                            : "")
+                        . ";";
                     $wpdb->query($sql);
                 }
             }

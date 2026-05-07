@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * Part of Omega - Routing Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
 declare(strict_types=1);
 
 namespace Omega\Routing;
@@ -26,6 +36,14 @@ use function end;
  *
  * The builder is designed to be used during the application boot phase,
  * where route files are dynamically loaded and executed.
+ *
+ * @category  Omega
+ * @package   Routing
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
  */
 class RouterBuilder
 {

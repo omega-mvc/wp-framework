@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Part of Omega - Http Package.
+ * Part of Omega - Routing Package.
  *
  * @link      https://omega-mvc.github.io
  * @author    Adriano Giovannini <agisoftt@gmail.com>

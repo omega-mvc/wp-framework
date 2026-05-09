@@ -40,11 +40,7 @@ use function load_plugin_textdomain;
  */
 class AdminServiceProvider extends ServiceProvider
 {
-    /**
-     * Registered admin feature integrations.
-     *
-     * @var array<class-string<FeaturesInterface>>
-     */
+    /** @var array<class-string<FeaturesInterface>> Registered admin feature integrations. */
     private array $features = [
         WooCommerce::class,
     ];

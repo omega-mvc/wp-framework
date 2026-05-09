@@ -43,33 +43,14 @@ use function remove_submenu_page;
  */
 abstract class AbstractMenuBuilder
 {
-    /**
-     * Registered top-level menus.
-     *
-     * Each item represents a Menu instance that will be rendered in the
-     * WordPress admin sidebar.
-     *
-     * @var array<int, Menu>
-     */
+    /** @var array<int, Menu> Top-level menus. Each item represents a Menu instance. */
     protected array $menus = [];
 
-    /**
-     * Optional group callback used for grouped menu definitions.
-     *
-     * This property is reserved for future grouping or macro-based menu building.
-     *
-     * @var callable|null
-     */
-    protected $groupCallback = null;
+    /** @var callable|null Optional group callback used for grouped menu definitions. */
+    protected mixed $groupCallback = null;
 
-    /**
-     * Currently active menu instance being built.
-     *
-     * Used internally to allow fluent chaining when constructing menus.
-     *
-     * @var Menu|null
-     */
-    protected $currentMenu = null;
+    /** @var Menu|null Currently active menu instance being built. */
+    protected ?Menu $currentMenu = null;
 
     /**
      * Application container instance.

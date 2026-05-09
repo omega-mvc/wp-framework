@@ -38,68 +38,28 @@ namespace Omega\Admin\Menu;
  */
 abstract class AbstractMenuItem
 {
-    /**
-     * Unique identifier used by WordPress for routing the menu item.
-     *
-     * @var string
-     */
+    /** @var string Unique identifier used by WordPress for routing the menu item. */
     protected string $slug = '';
 
-    /**
-     * Display title shown in the WordPress admin interface.
-     *
-     * @var string
-     */
+    /** @var string Display title shown in the WordPress admin interface. */
     protected string $title = '';
 
-    /**
-     * Required WordPress capability to access this menu item.
-     *
-     * @var string
-     */
+    /** @var string Required WordPress capability to access this menu item. */
     protected string $capability = 'manage_options';
 
-    /**
-     * Dashicon or custom icon identifier for the menu item.
-     *
-     * @var string
-     */
+    /** @var string Dashicon or custom icon identifier for the menu item. */
     protected string $icon = '';
 
-    /**
-     * Optional routing path associated with this menu item.
-     *
-     * Used when integrating with internal routing systems.
-     *
-     * @var string
-     */
+    /** @var string Optional routing path associated with this menu item. */
     protected string $path = '';
 
-    /**
-     * View identifier used to render the menu content.
-     *
-     * Typically mapped to a template or controller response.
-     *
-     * @var string
-     */
+    /** @var string View identifier used to render the menu content. */
     protected string $view = '';
 
-    /**
-     * Menu position in the WordPress admin sidebar.
-     *
-     * Lower values appear higher in the menu order.
-     *
-     * @var int|string|null
-     */
+    /** @var int|string|null Menu position in admin sidebar. Lower values appear higher in the menu order. */
     protected mixed $position = null;
 
-    /**
-     * Scripts or assets associated with this menu item.
-     *
-     * These assets are intended to be enqueued when the menu is rendered.
-     *
-     * @var array<int, mixed>
-     */
+    /** @var array<int, mixed> Scripts or assets associated with this menu item. */
     protected array $scripts = [];
 
     /**

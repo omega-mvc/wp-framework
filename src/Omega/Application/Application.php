@@ -105,7 +105,7 @@ class Application extends Container
     /**
      * Get the current application instance.
      *
-     * @return Application
+     * @return Application Return the application instance.
      */
     public static function getInstance(): Application
     {
@@ -115,7 +115,7 @@ class Application extends Container
     /**
      * Get the unique application identifier.
      *
-     * @return string
+     * @return string Return the application identifier.
      */
     public function getId(): string
     {
@@ -125,7 +125,7 @@ class Application extends Container
     /**
      * Get the application id in snake_case format.
      *
-     * @return string|array
+     * @return string|array Return the application in snake_case format.
      */
     public function getIdAsUnderscore(): array|string
     {
@@ -135,7 +135,7 @@ class Application extends Container
     /**
      * Get the base path of the application.
      *
-     * @return string
+     * @return string Return the absolute base path.
      */
     public function getBasePath(): string
     {
@@ -145,7 +145,7 @@ class Application extends Container
     /**
      * Get the root directory of the plugin.
      *
-     * @return string
+     * @return string Return the plugin root dir.
      */
     public function pluginRoot(): string
     {
@@ -155,7 +155,7 @@ class Application extends Container
     /**
      * Get the main plugin file path.
      *
-     * @return string
+     * @return string Return the plugin file.
      */
     public function getPluginFile(): string
     {

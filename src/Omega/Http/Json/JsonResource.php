@@ -14,9 +14,9 @@ declare(strict_types=1);
 
 namespace Omega\Http\Json;
 
-use BadMethodCallException;
 use Omega\Collection\Collection;
 use Omega\Database\Eloquent\AbstractModel;
+use Omega\Http\Exceptions\ResourceMethodNotFoundException;
 use Omega\Paginator\Paginator;
 
 use function call_user_func_array;
@@ -110,10 +110,11 @@ class JsonResource
      * This magic method proxies method calls to the wrapped resource instance
      * if the method exists.
      *
-     * @param string $method The method name.
-     * @param array $arguments The method arguments.
-     * @return mixed The result of the method call.
-     * @throws BadMethodCallException If the method does not exist on the resource.
+     * @param string $method The method name being called.
+     * @param array $arguments The arguments passed to the method.
+     * @return mixed The result of the proxied method call.
+     * @throws ResourceMethodNotFoundException If the method does not exist
+     *                                         on the resource or wrapper.
      */
     public function __call(string $method, array $arguments): mixed
     {
@@ -121,7 +122,7 @@ class JsonResource
             return call_user_func_array([$this->resource, $method], $arguments);
         }
 
-        throw new BadMethodCallException(sprintf(
+        throw new ResourceMethodNotFoundException(sprintf(
             'Method %s does not exist on %s or its resource.',
             $method,
             get_class($this)

@@ -1,12 +1,22 @@
 <?php
 
+/**
+ * Part of Omega - Database Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
 declare(strict_types=1);
 
 namespace Omega\Database;
 
 use Omega\Application\Application;
-use Omega\Database\Eloquent\QueryBuilder;
 use Omega\Database\Migrations\Migrator;
+use Omega\Database\Eloquent\QueryBuilder;
 use ReflectionException;
 use wpdb;
 
@@ -14,28 +24,49 @@ use function array_fill;
 use function array_keys;
 use function array_map;
 use function count;
+use function dbDelta;
 use function implode;
 use function sprintf;
 
 /**
- * Database class
+ * Provides a lightweight database abstraction layer on top of WordPress wpdb.
  *
- * This class is responsible for handling all database operations
+ * This class centralizes database operations used by the framework, including:
+ * - raw query execution
+ * - query preparation
+ * - schema creation and updates
+ * - table existence checks
+ * - bulk inserts
+ * - migration access
+ * - dynamic query builder creation
+ *
+ * It acts as the primary entry point for interacting with the database layer
+ * and bridges the framework internals with the native WordPress database API.
+ *
+ * @category  Omega
+ * @package   Database
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
  */
 class Database
 {
-    /** @var wpdb Wordpress database object. */
+    /** @var wpdb WordPress database connection instance. */
     protected wpdb $wpdb;
 
-    /** @var Migrator The migrator instance. */
+    /** @var Migrator Database migration manager instance. */
     protected Migrator $migrator;
 
     /**
-     * Class constructor.
+     * Create a new database manager instance.
      *
-     * @param Application $app
-     * @return void
-     * @throws ReflectionException
+     * Initializes the WordPress database connection and resolves
+     * the migration manager from the application container.
+     *
+     * @param Application $app The current application container instance.
+     * @throws ReflectionException Thrown when the migrator service cannot be resolved.
      */
     public function __construct(Application $app)
     {
@@ -45,11 +76,26 @@ class Database
         $this->migrator = $app->make('migrator');
     }
 
+    /**
+     * Retrieve the database migrator instance.
+     *
+     * @return Migrator The active migration manager instance.
+     */
     public function migrator(): Migrator
     {
         return $this->migrator;
     }
 
+    /**
+     * Generate a fully qualified WordPress table name.
+     *
+     * Automatically prepends the WordPress table prefix and
+     * optionally an additional custom prefix.
+     *
+     * @param string $tableName The base table name.
+     * @param string $prefix Optional custom table prefix.
+     * @return string The fully qualified table name.
+     */
     public static function getTableName(string $tableName, string $prefix = ''): string
     {
         global $wpdb;
@@ -58,12 +104,18 @@ class Database
     }
 
     /**
-     * Create or update a table in the database
+     * Create or update a database table using dbDelta().
      *
-     * Useful for creating new tables and updating existing tables to a new structure.
+     * This method generates and synchronizes the database schema
+     * based on the provided column definitions.
      *
-     * @param string $tableName
-     * @param array  $columns
+     * The table always includes:
+     * - an auto-incrementing unsigned bigint primary key named "id"
+     *
+     * Existing tables are automatically updated when possible.
+     *
+     * @param string $tableName The base table name without WordPress prefix.
+     * @param array<string, string> $columns Column definitions indexed by column name.
      * @return void
      */
     public static function createOrUpdateTable(string $tableName, array $columns): void
@@ -88,29 +140,47 @@ class Database
         dbDelta($sql);
     }
 
-
-    public static function tableExists(string $tableName): ?bool
+    /**
+     * Determine whether a database table exists.
+     *
+     * @param string $tableName The full table name to check.
+     * @return bool True when the table exists, otherwise false.
+     */
+    public static function tableExists(string $tableName): bool
     {
         global $wpdb;
 
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $tableName));
+        $exists = $wpdb->get_var(
+            $wpdb->prepare("SHOW TABLES LIKE %s", $tableName)
+        );
 
         return $exists !== null;
     }
 
     /**
-     * Prepare a query
+     * Prepare a SQL query using WordPress placeholder formatting.
      *
-     * @param string $query
-     * @param mixed  $args
-     * @return string
+     * Safely escapes and formats query bindings using wpdb::prepare().
+     *
+     * @param string $query The SQL query containing placeholders.
+     * @param mixed ...$args Query bindings used to replace placeholders.
+     * @return string The prepared and escaped SQL query.
      */
     public function prepare(string $query, mixed ...$args): string
     {
         return $this->wpdb->prepare($query, $args);
     }
 
-
+    /**
+     * Create a query builder instance for a database table.
+     *
+     * This method internally creates a temporary dynamic model
+     * bound to the specified table.
+     *
+     * @param string $table The base table name without prefix.
+     * @return QueryBuilder A query builder instance for the table.
+     * @throws ReflectionException If the parent model fails to resolve property or schema metadata via reflection.
+     */
     public static function table(string $table): QueryBuilder
     {
         $model = new DynamicModel([], self::getTableName($table));
@@ -119,10 +189,10 @@ class Database
     }
 
     /**
-     * Run a query
+     * Execute a raw SQL query.
      *
-     * @param string $query
-     * @return bool|int
+     * @param string $query The SQL query to execute.
+     * @return bool|int False on failure or the number of affected rows.
      */
     public function query(string $query): bool|int
     {
@@ -130,22 +200,24 @@ class Database
     }
 
     /**
-     * Get rows from the database.
+     * Retrieve multiple rows from the database.
      *
-     * @param string $query
-     * @return object|null
+     * @param string $query The SQL query to execute.
+     * @return array<object>|object|null Query results or null when no results exist.
      */
-    public function getResults(string $query): ?object
+    public function getResults(string $query): array|object|null
     {
         return $this->wpdb->get_results($query);
     }
 
     /**
-     * Get a single row from the database.
+     * Retrieve a single scalar value from the database.
      *
-     * @param string $query
-     * @return string|null
+     * Typically used for aggregate queries such as COUNT(),
+     * MAX(), MIN(), or fetching a single column value.
      *
+     * @param string $query The SQL query to execute.
+     * @return string|null The retrieved value or null if no result exists.
      */
     public function getVar(string $query): ?string
     {
@@ -153,30 +225,34 @@ class Database
     }
 
     /**
-     * Delete row(s) from the database.
+     * Delete rows from a database table.
      *
-     * @param string     $table
-     * @param array      $whereValues
-     * @param array|null $whereFormat
-     * @return bool|int
+     * @param string $table The target table name.
+     * @param array<string, mixed> $whereValues WHERE clause conditions.
+     * @param array<int, string>|null $whereFormat Optional WHERE value formats.
+     * @return bool|int False on failure or the number of affected rows.
      */
-    public function delete(string $table, array $whereValues, ?array $whereFormat = null): bool|int
-    {
+    public function delete(
+        string $table,
+        array $whereValues,
+        ?array $whereFormat = null
+    ): bool|int {
         return $this->wpdb->delete($table, $whereValues, $whereFormat);
     }
 
     /**
-     * Insert data into a table.
+     * Insert a single row into a database table.
      *
-     * @param string $table
-     * @param array  $data
-     * @return bool|int
+     * @param string $table The target table name.
+     * @param array<string, mixed> $data Column values to insert.
+     * @return bool|int False on failure or the inserted row ID.
      */
     public static function insert(string $table, array $data): bool|int
     {
         global $wpdb;
 
         $inserted = $wpdb->insert($table, $data);
+
         if (!$inserted) {
             return false;
         }
@@ -185,16 +261,20 @@ class Database
     }
 
     /**
-     * Update data into a table.
+     * Update existing rows in a database table.
      *
-     * @param string $table
-     * @param array  $data
-     * @param array  $whereValues
-     * @return bool|int
+     * @param string $table The target table name.
+     * @param array<string, mixed> $data Updated column values.
+     * @param array<string, mixed> $whereValues WHERE clause conditions.
+     * @return bool|int False on failure or the number of affected rows.
      */
-    public function update(string $table, array $data, array $whereValues): bool|int
-    {
+    public function update(
+        string $table,
+        array $data,
+        array $whereValues
+    ): bool|int {
         $updated = $this->wpdb->update($table, $data, $whereValues);
+
         if (!$updated) {
             return false;
         }
@@ -203,12 +283,14 @@ class Database
     }
 
     /**
-     * Insert multiple rows into a table.
+     * Insert multiple rows into a database table using a single query.
      *
-     * @param string $tableName
-     * @param array  $data
-     * @return bool|int Boolean true for CREATE, ALTER, TRUNCATE and DROP queries. Number of rows
-     *                  affected/selected for all other queries. Boolean false on error.
+     * This method dynamically generates a bulk INSERT statement
+     * and prepares all values using WordPress placeholders.
+     *
+     * @param string $tableName The target table name.
+     * @param array<int, array<string, mixed>> $data Rows to insert.
+     * @return bool|int False on failure or the number of affected rows.
      */
     public function insertMultiple(string $tableName, array $data): bool|int
     {
@@ -234,6 +316,8 @@ class Database
 
         $sql = "INSERT INTO $tableName ($columnsSql) VALUES $values_sql";
 
-        return $this->wpdb->query($this->wpdb->prepare($sql, $values));
+        return $this->wpdb->query(
+            $this->wpdb->prepare($sql, $values)
+        );
     }
 }

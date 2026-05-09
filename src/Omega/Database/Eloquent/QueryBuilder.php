@@ -1,7 +1,16 @@
 <?php
 
-/** @noinspection PhpUnusedParameterInspection */
+/**
+ * Part of Omega - Database Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
 
+/** @noinspection PhpUnusedParameterInspection */
 /** @noinspection PhpUnused */
 /** @noinspection PhpUnnecessaryCurlyVarSyntaxInspection */
 
@@ -17,6 +26,7 @@ use Omega\Database\Eloquent\Relations\BelongsTo;
 use Omega\Database\Eloquent\Relations\HasMany;
 use Omega\Database\Eloquent\Relations\HasOne;
 use Omega\Database\Eloquent\Relations\AbstractRelation;
+use Omega\Database\Exceptions\ModelNotFoundException;
 use Omega\Paginator\Paginator;
 use ReflectionClass;
 use ReflectionException;
@@ -36,85 +46,180 @@ use function strtoupper;
 use function wp_list_pluck;
 
 /**
- * QueryBuilder class.
+ * QueryBuilder
  *
- * This class is responsible for building database queries.
+ * Fluent SQL query builder bound to a specific AbstractModel instance.
+ *
+ * Provides a structured API for building database queries including:
+ * - SELECT operations with column selection
+ * - WHERE clauses (standard, nested, raw, and relation-based)
+ * - JOIN operations
+ * - GROUP BY and ORDER BY clauses
+ * - LIMIT and OFFSET pagination
+ * - Relationship eager loading via "with"
+ * - EXISTS subqueries support
+ *
+ * The builder is tightly coupled with the model's database connection
+ * and table configuration, ensuring queries are automatically scoped
+ * to the correct table context.
+ *
+ * This class is not intended to be instantiated directly outside of
+ * model query entry points (e.g. Model::query()).
+ *
+ * @category   Omega
+ * @package    Database
+ * @subpackage Eloquent
+ * @link       https://omega-mvc.github.io
+ * @author     Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version    1.0.0
  */
 class QueryBuilder
 {
-    /** @var string Table name. */
+    /** @var string Database table name associated with the model query. */
     protected string $tableName;
 
-    /** @var Database Database instance. */
+    /** @var Database Database connection instance used to execute queries. */
     protected Database $db;
 
     /**
-     * Where array
+     * Collection of WHERE conditions applied to the query.
      *
-     * @var array{
-     *      column: string,
-     *      value: mixed,
-     *      operator: string,
-     *      method: string,
-     *      table: string
-     * }
+     * Each entry represents a standard filtering condition and may include:
+     * - column: target column name
+     * - value: comparison value
+     * - operator: SQL operator (e.g. '=', 'IN', 'IS')
+     * - method: boolean connector (AND / OR)
+     * - table: optional table prefix for joins
+     *
+     * @var array<int, array{
+     *     column: string,
+     *     value: mixed,
+     *     operator: string,
+     *     method?: string,
+     *     table?: string
+     * }>
      */
     protected array $whereArray = [];
 
     /**
-     * Exists array
+     * Collection of EXISTS / NOT EXISTS subquery conditions.
      *
-     * @var array{
-     *      sql: string,
-     *      method: string
-     * }
+     * Each entry contains a pre-generated SQL subquery and the
+     * boolean operator used to combine it with other conditions.
+     *
+     * @var array<int, array{
+     *     sql: string,
+     *     method?: string,
+     *     not?: bool
+     * }>
      */
     protected array $existsArray = [];
 
     /**
-     * Where column array
+     * Column-to-column comparison conditions.
      *
-     * @var array{
-     *      column_one: string,
-     *      operator: string,
-     *      column_two: string,
-     *      method: string
-     * }
+     * Used for WHERE clauses comparing two database columns
+     * instead of column-value comparisons.
+     *
+     * @var array<int, array{
+     *     column_one: string,
+     *     operator: string,
+     *     column_two: string,
+     *     method?: string
+     * }>
      */
     protected array $whereColumnArray = [];
 
-    /** @var array @var array Join array. */
+    /**
+     * Join definitions applied to the query.
+     *
+     * Each entry represents an SQL JOIN clause including:
+     * - table: target table
+     * - local_key: column on the primary table
+     * - foreign_key: column on the joined table
+     *
+     * @var array<int, array{
+     *     table: string,
+     *     local_key: string,
+     *     foreign_key: string
+     * }>
+     */
     protected array $joinArray = [];
 
-    /** @var array Group by array. */
+    /** @var array<int, string> List of columns used for GROUP BY clause. */
     protected array $groupBy = [];
 
     /**
-     * With array
+     * Relationship eager loading configuration.
      *
-     * @var array{
-     *      @type string $relation,
-     *      @type string $table,
-     *      @type string $foreign_key,
-     *      @type string $local_key,
-     *      @type AbstractModel $model ,
-     *      @type AbstractRelation $relation_type
-     * }
+     * Each entry defines a model relationship to be preloaded,
+     * including mapping metadata required to resolve foreign keys
+     * and hydrate related models.
+     *
+     * @var array<int, array{
+     *     relation: string,
+     *     table: string,
+     *     foreign_key: string,
+     *     local_key: string,
+     *     model: class-string<AbstractModel>,
+     *     relation_type: class-string<AbstractRelation>
+     * }>
      */
     protected array $withArray = [];
 
-    /** @var array Order by array. */
+    /**
+     * Sorting configuration for query results.
+     *
+     * Each entry defines a column and direction used in ORDER BY clause.
+     *
+     * @var array<int, array{
+     *     column: string,
+     *     order: 'asc'|'desc'
+     * }>
+     */
     protected array $orderBy = [];
 
-    /** @var string  */
+    /**
+     * Selected columns for the query.
+     *
+     * Stored as a raw SQL select string (e.g. "*", "id, name, email").
+     *
+     * @var string
+     */
     private string $select = '*';
 
-    /** @var int Limit. */
-    private int $limit;
+    /**
+     * Maximum number of records to return.
+     *
+     * Used to restrict result set size.
+     *
+     * @var int|null
+     */
+    private ?int $limit = null;
 
-    /** @var int Offset. */
-    private int $offset;
+    /**
+     * Number of records to skip before returning results.
+     *
+     * Used for pagination and result slicing.
+     *
+     * @var int|null
+     */
+    private ?int $offset = null;
 
+    /**
+     * QueryBuilder constructor.
+     *
+     * Initializes a new query builder instance bound to a specific model.
+     * The builder automatically resolves the database connection and table name
+     * from the provided model instance.
+     *
+     * If the model uses soft deletes, a default condition is automatically added
+     * to exclude soft-deleted records (deleted_at IS NULL logic).
+     *
+     * @param AbstractModel $model The model instance used to scope the query.
+     */
     public function __construct(protected AbstractModel $model)
     {
         $this->db        = $model->getDatabase();
@@ -126,10 +231,13 @@ class QueryBuilder
     }
 
     /**
-     * Select columns
+     * Define the columns to be selected in the query.
      *
-     * @param array|string $columns
-     * @return QueryBuilder
+     * Accepts either a string or an array of column names. When an array is provided,
+     * it is converted into a comma-separated list suitable for SQL SELECT statements.
+     *
+     * @param array<int, string>|string $columns Column name(s) to select.
+     * @return QueryBuilder Returns the current query builder instance for chaining.
      */
     public function select(array|string $columns): QueryBuilder
     {
@@ -140,11 +248,28 @@ class QueryBuilder
         return $this;
     }
 
-    public function find($id): ?AbstractModel
+    /**
+     * Retrieve a single record by primary key.
+     *
+     * Internally builds a WHERE clause using the model's primary key
+     * and returns the first matching record, if any.
+     *
+     * @param mixed $id Primary key value of the record to retrieve.
+     * @return AbstractModel|null Returns the found model instance or null if not found.
+     */
+    public function find(mixed $id): ?AbstractModel
     {
         return $this->where($this->model->primaryKey, $id)->first();
     }
 
+    /**
+     * Add a WHERE IS NULL condition to the query.
+     *
+     * Filters results where the specified column contains a NULL value.
+     *
+     * @param string $column Column name to check for NULL.
+     * @return static Returns the current query builder instance for chaining.
+     */
     public function whereNull(string $column): static
     {
         $this->where($column, 'IS', '!#####NULL#####!');
@@ -152,6 +277,14 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * Add a WHERE IS NOT NULL condition to the query.
+     *
+     * Filters results where the specified column is not NULL.
+     *
+     * @param string $column Column name to check for non-NULL values.
+     * @return static Returns the current query builder instance for chaining.
+     */
     public function whereNotNull(string $column): static
     {
         $this->where($column, 'IS NOT', '!#####NULL#####!');
@@ -159,12 +292,16 @@ class QueryBuilder
         return $this;
     }
 
-
     /**
-     * @param string   $relation
-     * @param callable $callback
-     * @return static
-     * @throws ReflectionException
+     * Add a "WHERE NOT EXISTS" condition for a relationship.
+     *
+     * Builds a subquery based on the given relationship method and excludes
+     * records where the relationship exists, optionally filtered through a callback.
+     *
+     * @param string $relation Relationship method name defined on the model.
+     * @param callable(QueryBuilder): void $callback Callback to customize the related query.
+     * @return static Returns the current query builder instance for chaining.
+     * @throws ReflectionException Thrown when the relationship method cannot be resolved via reflection.
      */
     public function whereDoesntHave(string $relation, callable $callback): static
     {
@@ -206,6 +343,17 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * Add a raw WHERE clause to the query.
+     *
+     * Allows injecting custom SQL fragments directly into the query.
+     * Bindings are supported to safely inject dynamic values.
+     *
+     * @param string $sql Raw SQL condition string.
+     * @param array<int, mixed> $bindings Optional parameter bindings for prepared statements.
+     * @param string $boolean Boolean operator used to join conditions (AND/OR).
+     * @return static Returns the current query builder instance for chaining.
+     */
     public function whereRaw(string $sql, array $bindings = [], string $boolean = 'AND'): static
     {
         $this->whereArray[] = [
@@ -218,20 +366,36 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * Add a raw OR WHERE clause to the query.
+     *
+     * Shortcut for whereRaw() using OR as the boolean operator.
+     *
+     * @param string $sql Raw SQL condition string.
+     * @param array<int, mixed> $bindings Optional parameter bindings for prepared statements.
+     * @return static Returns the current query builder instance for chaining.
+     */
     public function orWhereRaw(string $sql, array $bindings = []): static
     {
         return $this->whereRaw($sql, $bindings, 'OR');
     }
 
     /**
-     * Add a basic where clause to the query.
+     * Add a WHERE condition to the query.
      *
-     * @param mixed|null $column Column name
-     * @param mixed|null $operator Value or Operator
-     * @param mixed|null $value Valor or null
-     * @param mixed|null $method
-     * @param mixed|null $table
-     * @return QueryBuilder
+     * Supports multiple input styles:
+     * - Key/value array of conditions
+     * - Nested callback conditions
+     * - Standard column/operator/value syntax
+     *
+     * Automatically normalizes operators and supports optional table scoping.
+     *
+     * @param array<string, mixed>|Closure|mixed $column Column name, conditions array, or nested callback.
+     * @param mixed|null $operator SQL operator (e.g. '=', '>', 'IN') or value if omitted.
+     * @param mixed|null $value Comparison value.
+     * @param string|null $method Boolean operator (AND/OR) used to join conditions.
+     * @param string|null $table Optional table name for fully qualified columns.
+     * @return static Returns the current query builder instance for chaining.
      */
     public function where(
         mixed $column,
@@ -276,12 +440,18 @@ class QueryBuilder
     }
 
     /**
-     * Add an "or where" clause to the query.
+     * Add an OR WHERE condition to the query.
      *
-     * @param mixed $column
-     * @param mixed $operator
-     * @param mixed $value
-     * @return QueryBuilder
+     * Accepts either:
+     * - a key/value array of conditions
+     * - a standard column/operator/value expression
+     *
+     * Internally delegates to where() using OR as the boolean operator.
+     *
+     * @param array<string, mixed>|mixed $column Column name or conditions array.
+     * @param mixed|null $operator SQL operator or value if omitted.
+     * @param mixed|null $value Comparison value.
+     * @return QueryBuilder Returns the current query builder instance for chaining.
      */
     public function orWhere(mixed $column, mixed $operator = null, mixed $value = null): QueryBuilder
     {
@@ -296,12 +466,18 @@ class QueryBuilder
     }
 
     /**
-     * Where has relation
+     * Add a "WHERE HAS" clause to filter records based on related model existence.
      *
-     * @param string $relation
-     * @param callable|null $callback
-     * @return QueryBuilder
-     * @throws ReflectionException
+     * Builds a subquery on the specified relationship and filters the parent query
+     * to include only records that have at least one matching related record.
+     *
+     * An optional callback can be used to further constrain the related query
+     * before it is converted into an EXISTS subquery.
+     *
+     * @param string $relation Name of the relationship method defined on the model.
+     * @param callable(QueryBuilder): void|null $callback Optional callback to modify the related query.
+     * @return QueryBuilder Returns the current query builder instance for chaining.
+     * @throws ReflectionException Thrown when the relationship method cannot be resolved via reflection.
      */
     public function whereHas(string $relation, ?callable $callback = null): QueryBuilder
     {
@@ -343,10 +519,12 @@ class QueryBuilder
     }
 
     /**
-     * Group by columns
+     * Add GROUP BY clause to the query.
      *
-     * @param string ...$columns
-     * @return QueryBuilder
+     * Accepts one or more column names and appends them to the GROUP BY statement.
+     *
+     * @param string ...$columns One or more column names to group by.
+     * @return QueryBuilder Returns the current query builder instance for chaining.
      */
     public function groupBy(string ...$columns): QueryBuilder
     {
@@ -357,11 +535,13 @@ class QueryBuilder
     }
 
     /**
-     * Where In
+     * Add a WHERE IN condition to the query.
      *
-     * @param string $column Name of the column.
-     * @param array  $values Array values of the column.
-     * @return QueryBuilder
+     * Filters results where the given column matches any of the provided values.
+     *
+     * @param string $column Column name to filter.
+     * @param array<int, mixed> $values List of values for the IN condition.
+     * @return QueryBuilder Returns the current query builder instance for chaining.
      */
     public function whereIn(string $column, array $values = []): QueryBuilder
     {
@@ -371,14 +551,16 @@ class QueryBuilder
     }
 
     /**
-     * Add an "or where" with relation clause to the query.
+     * Add an OR WHERE condition based on a relationship constraint.
      *
-     * @param mixed $relation
-     * @param mixed $column
-     * @param mixed $valueOrOperator
-     * @param mixed|null $fieldValue
-     * @return static
-     * @throws ReflectionException
+     * This is a convenience wrapper around whereRelation() using OR as the boolean operator.
+     *
+     * @param mixed $relation Relationship method name on the model.
+     * @param mixed $column Column name within the related table.
+     * @param mixed $valueOrOperator Comparison value or operator.
+     * @param mixed|null $fieldValue Optional comparison value when using a custom operator.
+     * @return static Returns the current query builder instance for chaining.
+     * @throws ReflectionException Thrown when the relationship cannot be resolved via reflection.
      */
     public function orWhereRelation(
         mixed $relation,
@@ -396,15 +578,21 @@ class QueryBuilder
     }
 
     /**
-     * Add a "where" with relation clause to the query.
+     * Add a WHERE condition based on a relationship join.
      *
-     * @param mixed      $relation
-     * @param mixed      $column
-     * @param mixed      $valueOrOperator
-     * @param mixed|null $fieldValue
-     * @param mixed      $queryMethod
-     * @return static
-     * @throws ReflectionException
+     * Dynamically resolves the given relationship using reflection and builds
+     * a join + where condition against the related table.
+     *
+     * Supports both HasOne and BelongsTo relationships and automatically
+     * adjusts join keys accordingly.
+     *
+     * @param mixed $relation Relationship method name on the model.
+     * @param mixed $column Column name in the related table.
+     * @param mixed $valueOrOperator Comparison operator or value.
+     * @param mixed|null $fieldValue Optional value when using a custom operator.
+     * @param mixed $queryMethod Boolean operator used to join conditions (AND/OR).
+     * @return static Returns the current query builder instance for chaining.
+     * @throws ReflectionException Thrown when the relationship method cannot be resolved.
      */
     public function whereRelation(
         mixed $relation,
@@ -492,13 +680,15 @@ class QueryBuilder
     }
 
     /**
-     * Add a "where" with columns compare clause to the query.
+     * Add a column comparison condition to the query.
      *
-     * @param string      $columnOne Column name
-     * @param string|null $operator  Operator or Column name
-     * @param string|null $columnTwo Column name
-     * @param string      $method    Method to use
-     * @return static
+     * Compares two columns directly using a SQL operator (e.g. columnA = columnB).
+     *
+     * @param string $columnOne First column name.
+     * @param string|null $operator Comparison operator or second column if omitted.
+     * @param string|null $columnTwo Second column name.
+     * @param string $method Boolean operator used to join conditions (AND/OR).
+     * @return static Returns the current query builder instance for chaining.
      */
     public function whereColumn(
         string $columnOne,
@@ -517,10 +707,13 @@ class QueryBuilder
     }
 
     /**
-     * Add relations to be loaded with the query
+     * Specify relationships to eager load with the query.
      *
-     * @param string|array $relations
-     * @return QueryBuilder
+     * Accepts a single relationship name or an array of relationships.
+     * Each relation is resolved and registered for eager loading.
+     *
+     * @param string|array<int, string> $relations Relationship name(s) to eager load.
+     * @return QueryBuilder Returns the current query builder instance for chaining.
      */
     public function with(array|string $relations): QueryBuilder
     {
@@ -540,9 +733,15 @@ class QueryBuilder
     }
 
     /**
-     * Add a single relation to the with array
+    /**
+     * Register a single relationship for eager loading.
      *
-     * @param string $relation
+     * Validates the relationship method, resolves its return type,
+     * and stores the configuration required for eager loading execution.
+     *
+     * Invalid or non-existing relationships are silently ignored.
+     *
+     * @param string $relation Relationship method name.
      * @return void
      */
     private function addRelationToWith(string $relation): void
@@ -584,15 +783,21 @@ class QueryBuilder
     }
 
     /**
-     * Build relation configuration based on relation type
+     * Build the configuration array for an eager-loaded relationship.
      *
-     * @param string $relationTypeName
-     * @param $relatedClass
-     * @param string $relation
-     * @return array|null
+     * Generates metadata required to execute eager loading based on
+     * the relationship type (HasOne, HasMany, BelongsTo).
+     *
+     * @param string $relationTypeName Fully qualified relationship class name.
+     * @param class-string<AbstractModel> $relatedClass Related model class name.
+     * @param string $relation Relationship method name.
+     * @return array<string, mixed>|null Returns relation configuration array or null if unsupported.
      */
-    private function buildRelationConfig(string $relationTypeName, $relatedClass, string $relation): ?array
-    {
+    private function buildRelationConfig(
+        string $relationTypeName,
+        string $relatedClass,
+        string $relation
+    ): ?array {
         $baseConfig = [
             'model'    => $relatedClass,
             'relation' => $relation,
@@ -620,9 +825,11 @@ class QueryBuilder
     }
 
     /**
-     * Count all records from the table
+     * Count all records matching the current query constraints.
      *
-     * @return int Database query results.
+     * Executes a COUNT(*) query based on the generated SQL conditions.
+     *
+     * @return int Returns the total number of matching records.
      */
     public function count(): int
     {
@@ -630,9 +837,11 @@ class QueryBuilder
     }
 
     /**
-     * Check if a record exists in the table
+     * Determine whether any records match the current query constraints.
      *
-     * @return bool
+     * Executes a COUNT query internally and returns true if at least one record exists.
+     *
+     * @return bool True if at least one record exists, false otherwise.
      */
     public function exists(): bool
     {
@@ -640,9 +849,15 @@ class QueryBuilder
     }
 
     /**
-     * Delete a record from the table
+     * Delete records matching the current query constraints.
      *
-     * @return int|false The number of rows updated, or false on error.
+     * If the model supports soft deletes (trashed mode enabled), the record is updated
+     * with a `deleted_at` timestamp instead of being physically removed.
+     *
+     * Otherwise, a hard delete is executed using the database driver.
+     *
+     * @param mixed|null $whereFormat Optional format specification for the underlying delete operation.
+     * @return int|false Number of affected rows on success, or false on failure.
      */
     public function delete(mixed $whereFormat = null): int|false
     {
@@ -657,7 +872,16 @@ class QueryBuilder
         }
     }
 
-    public function update($columnsValues): bool|int
+    /**
+     * Update records matching the current query constraints.
+     *
+     * Builds a dynamic SQL UPDATE statement with bound values and applies all
+     * accumulated WHERE, JOIN, ORDER BY, LIMIT and EXISTS conditions.
+     *
+     * @param array<string, mixed> $columnsValues Associative array of column => value pairs to update.
+     * @return int|bool Number of affected rows on success or true/false depending on driver implementation.
+     */
+    public function update(array $columnsValues): bool|int
     {
         $setClauses = [];
         $values     = [];
@@ -701,10 +925,13 @@ class QueryBuilder
     }
 
     /**
-     * Generate the query
+     * Generate the SQL query string for the current builder state.
      *
-     * @param bool $count
-     * @return string
+     * Can optionally generate a COUNT(*) query when $count is true.
+     * Includes SELECT, JOIN, WHERE, GROUP BY, ORDER BY, LIMIT and OFFSET clauses.
+     *
+     * @param bool $count Whether to generate a COUNT(*) query instead of a SELECT query.
+     * @return string The generated SQL query string.
      */
     protected function generateQuery(bool $count = false): string
     {
@@ -753,6 +980,20 @@ class QueryBuilder
         return $sql;
     }
 
+    /**
+     * Resolve all WHERE conditions into SQL placeholders and bound values.
+     *
+     * Supports:
+     * - Nested conditions (closures)
+     * - Raw SQL conditions
+     * - IN clauses
+     * - Standard column comparisons
+     *
+     * @return array{
+     *     placeholders: string[],
+     *     values: array<int, mixed>
+     * } Structured query parts ready for SQL preparation.
+     */
     public function resolveWhere(): array
     {
         $placeholders = [];
@@ -804,6 +1045,13 @@ class QueryBuilder
         return ['placeholders' => $placeholders, 'values' => $values];
     }
 
+    /**
+     * Resolve column-to-column comparison conditions.
+     *
+     * Example: table.column_one = table.column_two
+     *
+     * @return string SQL fragment representing column comparison conditions.
+     */
     public function resolveWhereColumn(): string
     {
         $placeholders = [];
@@ -820,6 +1068,13 @@ class QueryBuilder
         return implode(' ', $placeholders);
     }
 
+    /**
+     * Resolve EXISTS / NOT EXISTS subquery conditions.
+     *
+     * Converts stored subqueries into EXISTS(...) or NOT EXISTS(...) SQL fragments.
+     *
+     * @return string SQL fragment containing EXISTS conditions.
+     */
     public function resolveWhereExists(): string
     {
         $placeholders = [];
@@ -835,12 +1090,16 @@ class QueryBuilder
     }
 
     /**
-     * Generate the query
+    /**
+     * Hydrate model results with their eager-loaded relations.
      *
-     * @param $results
-     * @return array
+     * Processes the configured `withArray` relations and executes batched queries
+     * to attach related models to the given result set.
+     *
+     * @param array<int, object> $results Raw database result objects.
+     * @return array<int, array<string, mixed>> Array of resolved relational data indexed by primary key.
      */
-    public function getWithRelations($results): array
+    public function getWithRelations(array $results): array
     {
         if (empty($this->withArray)) {
             return [];
@@ -891,9 +1150,12 @@ class QueryBuilder
     }
 
     /**
-     * Get all records from the table
+    /**
+     * Execute the query and return a collection of hydrated model instances.
      *
-     * @return Collection Database query results.
+     * Also resolves eager-loaded relations if defined via `with()`.
+     *
+     * @return Collection<int, AbstractModel> Collection of hydrated model instances.
      */
     public function get(): Collection
     {
@@ -916,9 +1178,9 @@ class QueryBuilder
     }
 
     /**
-     * Get the first record from the table
+     * Retrieve the first record matching the query constraints.
      *
-     * @return AbstractModel|null Database query result.
+     * @return AbstractModel|null First matching model instance or null if none found.
      */
     public function first(): ?AbstractModel
     {
@@ -927,27 +1189,32 @@ class QueryBuilder
     }
 
     /**
-     * Get the first record from the table or throw an exception
+     * Retrieve the first record or throw an exception if none is found.
      *
-     * @return AbstractModel Database query result.
-     * @throws Exception
+     * This method behaves like "first()", but enforces the existence of a result.
+     * It is commonly used when the absence of a record is considered an error
+     * condition rather than a valid outcome.
+     *
+     * @return AbstractModel First matching model instance.
+     * @throws ModelNotFoundException If no record matches the query constraints.
      */
     public function firstOrFail(): AbstractModel
     {
         $result = $this->first();
+
         if (!$result) {
-            throw new Exception('No record found');
+            throw new ModelNotFoundException('No record found for the given query.');
         }
 
         return $result;
     }
 
     /**
-     * Order by
+     * Add an ORDER BY clause to the query.
      *
-     * @param array  $column
-     * @param string $order Values: asc, desc
-     * @return QueryBuilder
+     * @param array<string, mixed> $column Column definition (may include nested structure depending on implementation).
+     * @param string $order Sort direction ("asc" or "desc").
+     * @return QueryBuilder Current query builder instance for chaining.
      */
     public function orderBy(array $column, string $order = 'asc'): QueryBuilder
     {
@@ -957,10 +1224,11 @@ class QueryBuilder
     }
 
     /**
-     * Limit
+    /**
+     * Limit the number of results returned by the query.
      *
-     * @param int $limit
-     * @return QueryBuilder
+     * @param int $limit Maximum number of records to retrieve.
+     * @return QueryBuilder Current query builder instance for chaining.
      */
     public function limit(int $limit): QueryBuilder
     {
@@ -968,12 +1236,11 @@ class QueryBuilder
 
         return $this;
     }
-
     /**
-     * Offset
+     * Set the query result offset.
      *
-     * @param int $offset
-     * @return QueryBuilder
+     * @param int $offset Number of records to skip.
+     * @return QueryBuilder Current query builder instance for chaining.
      */
     public function offset(int $offset): QueryBuilder
     {
@@ -983,9 +1250,9 @@ class QueryBuilder
     }
 
     /**
-     * Get the model instance
+     * Retrieve the underlying model instance associated with this query builder.
      *
-     * @return AbstractModel
+     * @return AbstractModel The model instance used by this query builder.
      */
     public function getModel(): AbstractModel
     {
@@ -993,11 +1260,14 @@ class QueryBuilder
     }
 
     /**
-     * Paginate the results.
+     * Paginate the query results.
      *
-     * @param mixed  $perPage
-     * @param string $queryPageKey
-     * @return Paginator
+     * Executes the query with LIMIT and OFFSET based on the current page,
+     * and returns a paginator instance containing results and metadata.
+     *
+     * @param int $perPage Number of items per page.
+     * @param string $queryPageKey Query string key used to determine current page number.
+     * @return Paginator Paginated result set with metadata (total, per-page, current page).
      */
     public function paginate(mixed $perPage, string $queryPageKey = 'page'): Paginator
     {

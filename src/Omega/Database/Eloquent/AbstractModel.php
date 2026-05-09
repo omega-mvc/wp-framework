@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * Part of Omega - Database Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
 declare(strict_types=1);
 
 namespace Omega\Database\Eloquent;
@@ -15,7 +25,6 @@ use Omega\Database\Eloquent\Casts\MoneyCast;
 use Omega\Database\Eloquent\Relations\BelongsTo;
 use Omega\Database\Eloquent\Relations\HasMany;
 use Omega\Database\Eloquent\Relations\HasOne;
-use Omega\Database\Utils\Reflection;
 use Omega\Paginator\Paginator;
 use ReflectionClass;
 use ReflectionException;
@@ -37,37 +46,87 @@ use function str_replace;
 use function strtolower;
 use function ucwords;
 
+/**
+ * Base active record implementation for the Omega Eloquent ORM layer.
+ *
+ * This abstract model provides a lightweight ORM inspired by Laravel Eloquent,
+ * built specifically for the Omega framework and the WordPress ecosystem.
+ *
+ * It offers:
+ * - dynamic attribute access
+ * - automatic attribute casting
+ * - mutators and accessors
+ * - relationship handling
+ * - query builder integration
+ * - model persistence
+ * - timestamp management
+ * - array serialization
+ * - mass assignment support
+ * - soft delete detection
+ *
+ * Models extending this class automatically gain fluent database querying
+ * capabilities through the QueryBuilder and relationship system.
+ *
+ * The class also implements ArrayAccess, allowing model attributes to be
+ * accessed using array syntax in addition to object properties.
+ *
+ * @category   Omega
+ * @package    Database
+ * @subpackage Eloquent
+ * @link       https://omega-mvc.github.io
+ * @author     Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version    1.0.0
+ */
 abstract class AbstractModel implements ArrayAccess
 {
+    /** @var array<class-string, AbstractModel> Cached singleton-like model instances indexed by class name. */
     private static array $instances = [];
 
+    /** @var string Primary key column name used by the model. */
     protected string $primaryKey = 'id';
 
+    /** @var array<int, string> List of mass assignable attributes. If empty, all attributes are considered fillable. */
     protected array $fillable = [];
 
+    /** @var string Optional custom table prefix appended after the WordPress prefix. */
     protected string $prefix = '';
 
+    /** @var string Fully qualified database table name associated with the model. */
     protected string $table;
 
+    /** @var string Default foreign key name derived from the model class. */
     protected string $foreignKey;
 
+    /** @var array<string, mixed> Raw model attribute storage. */
     protected array $data = [];
 
+    /** @var bool Indicates whether the model was retrieved from the database. */
     private bool $wasRetrieved = false;
 
+    /** @var bool Determines whether automatic timestamp management is enabled. */
     public bool $timestamps = false;
 
+    /** @var array<string, mixed> Attribute cast definitions indexed by attribute name. */
     protected array $casts = [];
 
+    /** @var array<string, mixed> Tracks modified attributes pending database synchronization. */
     private array $updateData = [];
 
-    /** @var mixed Database instance. */
+    /** @var Database Database manager instance used by the model. */
     protected mixed $db;
 
     /**
-     * Database instance
+     * Retrieve the shared model instance for the current model class.
      *
-     * @return AbstractModel
+     * This method maintains an internal cache of model instances indexed
+     * by class name and returns the existing instance when available.
+     *
+     * The instance is primarily used internally to bootstrap query builders
+     * and perform static ORM operations.
+     *
+     * @return AbstractModel The shared model instance for the current class.
      */
     public static function getInstance(): AbstractModel
     {
@@ -81,12 +140,16 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Constructor
+     * Create a new model instance.
      *
-     * @param array       $data
-     * @param string|null $table
+     * Initializes the model database connection, resolves the associated
+     * table name, generates the default foreign key name, and hydrates
+     * model attributes with automatic casting support.
+     *
+     * @param array<string, mixed> $data Optional initial model attributes.
+     * @param string|null $table Optional custom database table name.
      * @return void
-     * @throws ReflectionException
+     * @throws ReflectionException Thrown when model metadata reflection fails.
      */
     public function __construct(array $data = [], ?string $table = null)
     {
@@ -101,21 +164,50 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * @throws ReflectionException
+     * Resolve the fully qualified database table name for the model.
+     *
+     * If the model defines a custom table property, that value is used.
+     * Otherwise, the table name is automatically generated from the
+     * model class name using snake_case pluralization conventions.
+     *
+     * The WordPress table prefix and optional custom prefix are
+     * automatically applied.
+     *
+     * @return string The fully qualified database table name.
+     * @throws ReflectionException Thrown when model reflection metadata cannot be resolved.
      */
     public static function getFullTableName(): string
     {
         $class = get_called_class();
-        $defaultTableName = Reflection::getDefaultValue($class, 'table');
+        $defaultTableName = static::getDefaultPropertyValue($class, 'table');
 
         if (empty($defaultTableName)) {
-            return Database::getTableName(self::modelToTable(get_called_class()), self::getPrefix());
+            return Database::getTableName(
+                self::modelToTable(get_called_class()),
+                self::getPrefix()
+            );
         } else {
-            return Database::getTableName($defaultTableName, self::getPrefix());
+            return Database::getTableName(
+                $defaultTableName,
+                self::getPrefix()
+            );
         }
     }
 
-    public static function modelToTable($model): string
+    /**
+     * Convert a model class name into its default database table name.
+     *
+     * The generated table name uses snake_case formatting and a pluralized
+     * suffix based on the model short class name.
+     *
+     * Example:
+     * UserProfile => user_profiles
+     *
+     * @param object|class-string $model The model class name or model instance.
+     * @return string The generated database table name.
+     * @throws ReflectionException Thrown when model reflection metadata cannot be resolved.
+     */
+    public static function modelToTable(object|string $model): string
     {
         $reflect              = new ReflectionClass($model);
         $tableNameUnderscored = preg_replace('/(?<!^)([A-Z])/', '_$1', $reflect->getShortName());
@@ -123,7 +215,20 @@ abstract class AbstractModel implements ArrayAccess
         return strtolower($tableNameUnderscored) . 's';
     }
 
-    private function modelToForeign($model): string
+    /**
+     * Generate the base foreign key name for a model.
+     *
+     * The generated value is based on the model short class name
+     * converted to snake_case format.
+     *
+     * Example:
+     * UserProfile => user_profile
+     *
+     * @param object|class-string $model The model class name or model instance.
+     * @return string The generated foreign key base name.
+     * @throws ReflectionException Thrown when model reflection metadata cannot be resolved.
+     */
+    private function modelToForeign(object|string $model): string
     {
         $reflect              = new ReflectionClass($model);
         $tableNameUnderscored = preg_replace('/(?<!^)([A-Z])/', '_$1', $reflect->getShortName());
@@ -131,11 +236,27 @@ abstract class AbstractModel implements ArrayAccess
         return strtolower($tableNameUnderscored);
     }
 
+    /**
+     * Retrieve the model foreign key base name.
+     *
+     * @return string The model foreign key base name.
+     */
     public function getForeignKey(): string
     {
         return $this->foreignKey;
     }
 
+    /**
+     * Retrieve the default static foreign key column name for the model.
+     *
+     * The generated foreign key is based on the model short class name
+     * converted to snake_case format with the "_id" suffix appended.
+     *
+     * Example:
+     * UserProfile => user_profile_id
+     *
+     * @return string The generated foreign key column name.
+     */
     public static function getForeignKeyStatic(): string
     {
         $reflect              = new ReflectionClass(get_called_class());
@@ -145,40 +266,49 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Query
+     * Create a new query builder instance for the current model.
      *
-     * @return QueryBuilder
+     * This method acts as the primary ORM query entry point and
+     * initializes a fresh QueryBuilder bound to the model instance.
+     *
+     * @return QueryBuilder A query builder instance for the model.
      */
     public static function query(): QueryBuilder
     {
-        $instance     = self::getInstance();
+        $instance = self::getInstance();
 
         return new QueryBuilder($instance);
     }
 
-
+    /**
+     * Create a query builder instance bound to the current model instance.
+     *
+     * @return QueryBuilder A query builder instance for the current model.
+     */
     public function getQueryBuilder(): QueryBuilder
     {
         return new QueryBuilder($this);
     }
 
     /**
-     * Add relations to a QueryBuilder
+     * Eager load one or more model relationships.
      *
-     * @param array|string $relationName
-     * @return QueryBuilder
+     * This method initializes a query builder configured to preload
+     * the specified relationships during query execution.
+     *
+     * @param string|array<int, string> $relationName Relationship name or list of relationships.
+     * @return QueryBuilder A configured query builder instance.
      */
     public static function with(array|string $relationName): QueryBuilder
     {
         return self::query()->with($relationName);
     }
 
-
     /**
-     * Find a record by id
+     * Retrieve a model by its primary key.
      *
-     * @param int $id
-     * @return AbstractModel|null
+     * @param int $id The model primary key value.
+     * @return AbstractModel|null The retrieved model instance or null when not found.
      */
     public static function find(int $id): ?AbstractModel
     {
@@ -186,9 +316,9 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Get all records from the database
+     * Retrieve all records for the current model.
      *
-     * @return Collection
+     * @return Collection<int, AbstractModel> A collection containing all model records.
      */
     public static function all(): Collection
     {
@@ -199,9 +329,9 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Get count for all records from the table
+     * Count the total number of records for the current model.
      *
-     * @return int Database query results.
+     * @return int The total number of matching records.
      */
     public static function count(): int
     {
@@ -212,10 +342,10 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Where Null
+     * Add a WHERE NULL clause to the query.
      *
-     * @param mixed $column Column name
-     * @return QueryBuilder
+     * @param mixed $column The column name to check for NULL values.
+     * @return QueryBuilder A configured query builder instance.
      */
     public static function whereNull(mixed $column): QueryBuilder
     {
@@ -223,15 +353,24 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Where
+     * Add a basic WHERE clause to the query.
      *
-     * @param mixed $column Column name
-     * @param mixed $operator Value or Operator
-     * @param mixed $value Valor or null
-     * @return QueryBuilder
+     * Supports both standard comparisons and shorthand query syntax.
+     *
+     * Examples:
+     * - where('id', 1)
+     * - where('age', '>', 18)
+     *
+     * @param mixed $column The column name or query condition.
+     * @param mixed $operator Optional comparison operator.
+     * @param mixed $value Optional comparison value.
+     * @return QueryBuilder A configured query builder instance.
      */
-    public static function where(mixed $column, mixed $operator = null, mixed $value = null): QueryBuilder
-    {
+    public static function where(
+        mixed $column,
+        mixed $operator = null,
+        mixed $value = null
+    ): QueryBuilder {
         $instance = self::getInstance();
         $builder  = new QueryBuilder($instance);
 
@@ -241,11 +380,16 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Where Has
+     * Add a relationship existence condition to the query.
      *
-     * @param string   $relation
-     * @param callable $callback
-     * @return QueryBuilder
+     * This method filters results based on the existence of a related
+     * model relationship and allows additional query constraints
+     * through the provided callback.
+     *
+     * @param string $relation The relationship method name.
+     * @param callable $callback Callback used to customize the relation query.
+     * @return QueryBuilder The query builder instance for method chaining.
+     * @throws ReflectionException Thrown when relation metadata cannot be resolved.
      */
     public static function whereHas(string $relation, callable $callback): QueryBuilder
     {
@@ -258,10 +402,10 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Select
+     * Specify the columns that should be selected by the query.
      *
-     * @param string|array $columns
-     * @return QueryBuilder
+     * @param string|array $columns Column name or list of columns to select.
+     * @return QueryBuilder The query builder instance for method chaining.
      */
     public static function select(string|array $columns): QueryBuilder
     {
@@ -274,11 +418,14 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Where In
+     * Add a WHERE IN condition to the query.
      *
-     * @param string $column Name of the column.
-     * @param array  $values Array values of the column.
-     * @return QueryBuilder
+     * Filters results where the specified column value exists
+     * within the provided list of values.
+     *
+     * @param string $column The database column name.
+     * @param array $values List of accepted values.
+     * @return QueryBuilder The query builder instance for method chaining.
      */
     public static function whereIn(string $column, array $values = []): QueryBuilder
     {
@@ -291,37 +438,46 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Get Prefix
+     * Retrieve the custom table prefix defined by the model.
      *
-     * Add Compatibility with PHP 7.4
-     * PHP >= 8 use  getDefaultValue
-     *
-     * @return string
-     * @throws ReflectionException
+     * @return string The configured model table prefix.
+     * @throws ReflectionException If the given class cannot be reflected.
      */
     public static function getPrefix(): string
     {
         $class = get_called_class();
 
-        return Reflection::getDefaultValue($class, 'prefix', '');
+        return static::getDefaultPropertyValue($class, 'prefix', '');
     }
 
     /**
-     * @throws ReflectionException
+     * Determine whether timestamp management is enabled for the model.
+     *
+     * When enabled, the model automatically manages the
+     * "created_at" and "updated_at" columns.
+     *
+     * @return bool True when timestamps are enabled, otherwise false.
+     * @throws ReflectionException If the given class cannot be reflected.
      */
-    public static function usesTimestamps()
+    public static function usesTimestamps(): bool
     {
         $class = get_called_class();
 
-        return Reflection::getDefaultValue($class, 'timestamps', false);
+        return static::getDefaultPropertyValue($class, 'timestamps', false);
     }
 
     /**
-     * Create a record
+     * Create and persist a new model instance.
      *
-     * @param array $columnsValues
-     * @return false|AbstractModel
-     * @throws ReflectionException
+     * Attribute mutators and casts are automatically applied
+     * before the record is inserted into the database.
+     *
+     * If timestamps are enabled, the "created_at" and "updated_at"
+     * columns are automatically populated.
+     *
+     * @param array<string, mixed> $columnsValues Column values to insert.
+     * @return false|AbstractModel The newly created model instance or false on failure.
+     * @throws ReflectionException Thrown when model reflection metadata cannot be resolved.
      */
     public static function create(array $columnsValues): false|AbstractModel
     {
@@ -339,6 +495,7 @@ abstract class AbstractModel implements ArrayAccess
         }
 
         $inserted = Database::insert($tableName, $columnsValues);
+
         if ($inserted) {
             $class    = get_called_class();
             $newClass = new $class(
@@ -349,16 +506,16 @@ abstract class AbstractModel implements ArrayAccess
 
             return $newClass;
         }
+
         return false;
     }
 
-
     /**
-     * Update
+     * Update existing records matching the specified conditions.
      *
-     * @param array $columnsValues
-     * @param array $whereValues
-     * @return bool|int
+     * @param array<string, mixed> $columnsValues Column values to update.
+     * @param array<string, mixed> $whereValues WHERE clause conditions.
+     * @return bool|int False on failure or the number of affected rows.
      */
     public static function update(array $columnsValues, array $whereValues): bool|int
     {
@@ -368,7 +525,16 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * @throws ReflectionException
+     * Update an existing record or create a new one if no match exists.
+     *
+     * The method first attempts to locate a record matching the
+     * provided conditions. If found, the record is updated.
+     * Otherwise, a new record is created.
+     *
+     * @param array<string, mixed> $whereValues Conditions used to find the record.
+     * @param array<string, mixed> $columnsValues Column values used for update or creation.
+     * @return bool|int|AbstractModel Updated row count, created model instance, or false on failure.
+     * @throws ReflectionException Thrown when model reflection metadata cannot be resolved.
      */
     public static function updateOrCreate(array $whereValues, array $columnsValues): bool|int|AbstractModel
     {
@@ -379,10 +545,23 @@ abstract class AbstractModel implements ArrayAccess
             return $existing->update($columnsValues, $whereValues);
         } else {
             $data = array_merge($whereValues, $columnsValues);
+
             return self::create($data);
         }
     }
 
+    /**
+     * Fill the model with attributes for a future update operation.
+     *
+     * Only attributes defined in the fillable list are accepted,
+     * unless no fillable restrictions are configured.
+     *
+     * The values are temporarily stored and persisted when save()
+     * is called.
+     *
+     * @param array<string, mixed> $data Attribute values to assign.
+     * @return void
+     */
     public function fill(array $data): void
     {
         foreach ($data as $key => $value) {
@@ -393,9 +572,14 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Save the model to the database.
+     * Persist the current model instance to the database.
      *
-     * @return false|int
+     * If the model was previously retrieved from the database,
+     * an UPDATE query is executed using the modified attributes.
+     *
+     * Otherwise, a new database record is inserted.
+     *
+     * @return false|int False on failure or the inserted/affected row count.
      */
     public function save(): false|int
     {
@@ -404,23 +588,30 @@ abstract class AbstractModel implements ArrayAccess
             $id           = $this->data[$this->primaryKey];
             $queryBuilder = new QueryBuilder($this);
             $result       = $queryBuilder->where($this->primaryKey, $id)->update($data);
+
             if ($result) {
                 $this->data = array_merge($this->data, $this->updateData);
             }
+
             return $result;
         } else {
             $result = $this->db->insert($this->table, $this->data);
+
             if ($result) {
                 $this->data[$this->primaryKey] = $result;
             }
+
             return $result;
         }
     }
 
     /**
-     * Delete the model from the database.
+     * Delete the current model instance from the database.
      *
-     * @return bool|int
+     * The model must originate from an existing database record
+     * in order to be deleted.
+     *
+     * @return bool|int False on failure or the number of affected rows.
      */
     public function delete(): bool|int
     {
@@ -435,21 +626,37 @@ abstract class AbstractModel implements ArrayAccess
         return false;
     }
 
-    public function relationLoaded($relation): bool
+    /**
+     * Determine whether a relationship has already been loaded.
+     *
+     * @param string $relation The relationship name to check.
+     * @return bool True when the relationship is loaded, otherwise false.
+     */
+    public function relationLoaded(string $relation): bool
     {
         return isset($this->data[$relation]);
     }
 
-    public function setAttribute($key, $value): void
+    /**
+     * Set a raw attribute value on the model instance.
+     *
+     * This method directly assigns the value without applying
+     * casts or attribute mutators.
+     *
+     * @param string $key The attribute name.
+     * @param mixed $value The attribute value.
+     * @return void
+     */
+    public function setAttribute(string $key, mixed $value): void
     {
         $this->data[$key] = $value;
     }
 
     /**
-     * Create Many
+     * Insert multiple records into the model table.
      *
-     * @param array $columnsValues
-     * @return bool|int
+     * @param array<int, array<string, mixed>> $columnsValues List of rows to insert.
+     * @return bool|int False on failure or the number of affected rows.
      */
     public static function createMany(array $columnsValues): bool|int
     {
@@ -459,10 +666,10 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * One-to-one relationship
+     * Define a one-to-one relationship.
      *
-     * @param string $relatedClass
-     * @return HasOne
+     * @param string $relatedClass The related model class name.
+     * @return HasOne The configured one-to-one relationship instance.
      */
     public function hasOne(string $relatedClass): HasOne
     {
@@ -470,10 +677,11 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Belongs to relationship
+     * Define an inverse one-to-one or many relationship.
      *
-     * @param string $relatedClass
-     * @return BelongsTo
+     * @param string $relatedClass The related model class name.
+     * @return BelongsTo The configured belongs-to relationship instance.
+     * @throws ReflectionException Thrown when model reflection metadata cannot be resolved.
      */
     public function belongsTo(string $relatedClass): BelongsTo
     {
@@ -483,22 +691,20 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * HasMany to relationship
+     * Define a one-to-many relationship.
      *
-     * @param string $relatedClass
-     * @return HasMany
+     * @param string $relatedClass The related model class name.
+     * @return HasMany The configured one-to-many relationship instance.
      */
     public function hasMany(string $relatedClass): HasMany
     {
-        //$foreignKey = $this->modelToForeign( $related_class );
         return new HasMany($this, $relatedClass, "{$this->foreignKey}_id", "id");
     }
 
-
     /**
-     * Get table name
+     * Retrieve the fully qualified database table name.
      *
-     * @return string
+     * @return string The model table name including prefixes.
      */
     public function getTableName(): string
     {
@@ -506,20 +712,19 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Get primary key
+     * Retrieve the model primary key column name.
      *
-     * @return string
+     * @return string The primary key column name.
      */
     public function getPrimaryKey(): string
     {
         return $this->primaryKey;
     }
 
-
     /**
-     * Get table name
+     * Retrieve the model table name statically.
      *
-     * @return string
+     * @return string The fully qualified model table name.
      */
     public static function getTable(): string
     {
@@ -529,33 +734,53 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Get database
+     * Retrieve the database manager instance associated with the model.
      *
-     * @return Database
+     * @return Database The active database manager instance.
      */
     public function getDatabase(): Database
     {
         return $this->db;
     }
 
-
+    /**
+     * Determine whether the model uses soft deletes.
+     *
+     * @return bool True when the model uses the SoftDeletesTrait, otherwise false.
+     */
     public function trashed(): bool
     {
         return in_array(SoftDeletesTrait::class, class_uses($this));
     }
 
+    /**
+     * Determine statically whether the model uses soft deletes.
+     *
+     * @return bool True when the model uses the SoftDeletesTrait, otherwise false.
+     */
     public static function isTrashed(): bool
     {
         return in_array(SoftDeletesTrait::class, class_uses(get_called_class()));
     }
 
+    /**
+     * Convert the model instance into an array representation.
+     *
+     * Related models and collections are recursively converted
+     * into arrays.
+     *
+     * @return array<string, mixed> The model data as an array.
+     */
     public function toArray(): array
     {
         $result = [];
+
         foreach ($this->data as $key => $value) {
             if ($value instanceof Collection) {
                 $result[$key] = $value->map(function ($item) {
-                    return $item instanceof AbstractModel ? $item->toArray() : $item;
+                    return $item instanceof AbstractModel
+                        ? $item->toArray()
+                        : $item;
                 });
             } elseif ($value instanceof AbstractModel) {
                 $result[$key] = $value->toArray();
@@ -567,82 +792,103 @@ abstract class AbstractModel implements ArrayAccess
         return $result;
     }
 
+    /**
+     * Determine whether a given attribute exists in the model data.
+     *
+     * @param string $key The attribute name to check.
+     * @return bool True when the attribute exists, otherwise false.
+     */
     public function keyExists(string $key): bool
     {
         return array_key_exists($key, $this->data);
     }
 
     /**
-     * Get the attribute method name for a given attribute.
+     * Resolve the accessor or mutator method name for an attribute.
      *
-     * @param string $key
-     * @return string|null
+     * Converts snake_case attribute names into camelCase method names
+     * and checks whether the method exists on the model.
+     *
+     * @param string $key The attribute name.
+     * @return string|null The resolved method name or null if not found.
      */
     protected function getAttributeMethod(string $key): ?string
     {
-        // Convert snake_case to camelCase for method name
         $method = lcfirst(str_replace('_', '', ucwords($key, '_')));
 
         return method_exists($this, $method) ? $method : null;
     }
 
     /**
-     * Get attribute value using Attribute accessor if available
+     * Retrieve and transform an attribute value.
      *
-     * @param string $key
-     * @param mixed  $value
-     * @return mixed
+     * This method applies:
+     * - attribute accessors
+     * - custom attribute objects
+     * - configured attribute casts
+     *
+     * Built-in primitive casts and custom cast classes are both supported.
+     *
+     * @param string $key The attribute name.
+     * @param mixed $value Optional raw attribute value.
+     * @return mixed The transformed attribute value.
      */
     private function getAttributeValue(string $key, mixed $value = null): mixed
     {
-
         $attributeMethod = $this->getAttributeMethod($key);
+
         if ($attributeMethod && method_exists($this, $attributeMethod)) {
             $attribute = $this->$attributeMethod();
+
             if ($attribute instanceof Attribute && $attribute->get) {
                 return call_user_func(
                     $attribute->get,
                     $value !== null
                         ? $value
-                        : ($this->data[$key] ?? null
-                    ),
+                        : ($this->data[$key] ?? null),
                     $this->data
                 );
             }
         }
 
-
         $casts = $this->casts();
 
         if (array_key_exists($key, $casts)) {
             $cast = $casts[$key];
+
             if (is_string($cast)) {
                 switch (strtolower($cast)) {
                     case 'boolean':
                     case 'bool':
                         $cast = BooleanCast::class;
                         break;
+
                     case 'array':
                         $cast = ArrayCast::class;
                         break;
+
                     case 'money':
                         $cast = MoneyCast::class;
                         break;
+
                     case 'int':
                     case 'integer':
-                        return (int)$value;
+                        return (int) $value;
+
                     case 'real':
                     case 'float':
                     case 'double':
-                        return (float)$value;
+                        return (float) $value;
+
                     case 'string':
-                        return $value === null ? null : (string)$value;
+                        return $value === null ? null : (string) $value;
                 }
 
                 if (class_exists($cast)) {
                     $cast = new $cast();
                 }
             }
+
             if ($cast instanceof CastsAttributesInterface) {
                 return $cast->get($this, $key, $value, $this->data);
             }
@@ -652,21 +898,36 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Set attribute value using Attribute mutator if available
+     * Transform and prepare an attribute value before persistence.
      *
-     * @param string $key
-     * @param mixed  $value
-     * @param array  $data
-     * @return mixed
+     * This method applies:
+     * - attribute mutators
+     * - custom attribute objects
+     * - configured attribute casts
+     *
+     * Built-in primitive casts and custom cast classes are supported.
+     *
+     * @param string $key The attribute name.
+     * @param mixed $value The raw attribute value.
+     * @param array<string, mixed> $data Additional attribute data context.
+     * @return mixed The transformed attribute value.
      */
-    private function setAttributeValue(string $key, mixed $value, array $data = []): mixed
-    {
+    private function setAttributeValue(
+        string $key,
+        mixed $value,
+        array $data = []
+    ): mixed {
         $attributeMethod = $this->getAttributeMethod($key);
 
         if ($attributeMethod && method_exists($this, $attributeMethod)) {
             $attribute = $this->$attributeMethod();
+
             if ($attribute instanceof Attribute && $attribute->set) {
-                return call_user_func($attribute->set, $value, array_merge($data, $this->data));
+                return call_user_func(
+                    $attribute->set,
+                    $value,
+                    array_merge($data, $this->data)
+                );
             }
         }
 
@@ -674,32 +935,40 @@ abstract class AbstractModel implements ArrayAccess
 
         if (array_key_exists($key, $casts)) {
             $cast = $casts[$key];
+
             if (is_string($cast)) {
                 switch (strtolower($cast)) {
                     case 'boolean':
                     case 'bool':
                         $cast = BooleanCast::class;
                         break;
+
                     case 'array':
                         $cast = ArrayCast::class;
                         break;
+
                     case 'money':
                         $cast = MoneyCast::class;
                         break;
+
                     case 'int':
                     case 'integer':
-                        return (int)$value;
+                        return (int) $value;
+
                     case 'real':
                     case 'float':
                     case 'double':
-                        return (float)$value;
+                        return (float) $value;
+
                     case 'string':
-                        return $value === null ? null : (string)$value;
+                        return $value === null ? null : (string) $value;
                 }
+
                 if (class_exists($cast)) {
                     $cast = new $cast();
                 }
             }
+
             if ($cast instanceof CastsAttributesInterface) {
                 return $cast->set($this, $key, $value, $this->data);
             }
@@ -708,12 +977,26 @@ abstract class AbstractModel implements ArrayAccess
         return $value;
     }
 
+    /**
+     * Retrieve the model attribute cast definitions.
+     *
+     * @return array<string, mixed> The configured attribute casts.
+     */
     protected function casts(): array
     {
         return $this->casts ?? [];
     }
 
-    public function __get($name)
+    /**
+     * Dynamically retrieve a model attribute or relationship.
+     *
+     * Attribute accessors and casts are automatically applied
+     * when resolving values.
+     *
+     * @param string $name The attribute or relationship name.
+     * @return mixed The resolved attribute value.
+     */
+    public function __get(string $name)
     {
         if ($this->keyExists($name)) {
             return $this->data[$name];
@@ -729,10 +1012,13 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Dynamically set an attribute on the model.
+     * Dynamically assign a model attribute value.
      *
-     * @param string $name
-     * @param mixed  $value
+     * Attribute mutators and casts are automatically applied
+     * before the value is stored.
+     *
+     * @param string $name The attribute name.
+     * @param mixed $value The attribute value.
      * @return void
      */
     public function __set(string $name, mixed $value): void
@@ -746,16 +1032,22 @@ abstract class AbstractModel implements ArrayAccess
         }
     }
 
-    public function __isset($name)
+    /**
+     * Determine whether a dynamic attribute exists.
+     *
+     * @param string $name The attribute name.
+     * @return bool True when the attribute exists, otherwise false.
+     */
+    public function __isset(string $name): bool
     {
         return isset($this->data[$name]);
     }
 
     /**
-     * Determine if an item exists at an offset.
+     * Determine whether a value exists at the given array offset.
      *
-     * @param mixed $offset
-     * @return bool
+     * @param mixed $offset The array offset to check.
+     * @return bool True when the offset exists, otherwise false.
      */
     public function offsetExists(mixed $offset): bool
     {
@@ -763,10 +1055,13 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Get an item at a given offset.
+     * Retrieve a value from the model using array access syntax.
      *
-     * @param mixed $offset
-     * @return mixed
+     * Attribute accessors and casts are automatically applied
+     * when resolving values.
+     *
+     * @param mixed $offset The array offset to retrieve.
+     * @return mixed The resolved attribute value or null.
      */
     #[ReturnTypeWillChange]
     public function offsetGet(mixed $offset): mixed
@@ -785,10 +1080,13 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Set the item at a given offset.
+     * Assign a value using array access syntax.
      *
-     * @param mixed $offset
-     * @param mixed $value
+     * Attribute mutators and casts are automatically applied
+     * before the value is stored.
+     *
+     * @param mixed $offset The target array offset.
+     * @param mixed $value The value to assign.
      * @return void
      */
     public function offsetSet(mixed $offset, mixed $value): void
@@ -809,9 +1107,9 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Unset the item at a given offset.
+     * Remove a value using array access syntax.
      *
-     * @param mixed $offset
+     * @param mixed $offset The array offset to remove.
      * @return void
      */
     public function offsetUnset(mixed $offset): void
@@ -819,22 +1117,36 @@ abstract class AbstractModel implements ArrayAccess
         unset($this->data[$offset]);
     }
 
+    /**
+     * Determine whether the model was retrieved from the database.
+     *
+     * @return bool True when the model originates from the database.
+     */
     public function wasRetrieved(): bool
     {
         return $this->wasRetrieved;
     }
 
-    public function setWasRetrieved($wasRetrieved): void
+    /**
+     * Set the retrieved state of the model instance.
+     *
+     * @param bool $wasRetrieved The retrieved state value.
+     * @return void
+     */
+    public function setWasRetrieved(bool $wasRetrieved): void
     {
         $this->wasRetrieved = $wasRetrieved;
     }
 
     /**
-     * Execute a callback if the condition is true, otherwise return a default value.
+     * Conditionally modify a query builder instance.
      *
-     * @param mixed    $condition
-     * @param callable $callback
-     * @return QueryBuilder
+     * The callback is only executed when the provided condition
+     * evaluates to a truthy value.
+     *
+     * @param mixed $condition The condition to evaluate.
+     * @param callable $callback The callback used to modify the query.
+     * @return QueryBuilder The query builder instance.
      */
     public static function when(mixed $condition, callable $callback): QueryBuilder
     {
@@ -846,15 +1158,41 @@ abstract class AbstractModel implements ArrayAccess
     }
 
     /**
-     * Paginate the results.
+     * Paginate the model query results.
      *
-     * @param mixed $perPage
-     * @return Paginator
+     * @param mixed $perPage The number of items per page.
+     * @return Paginator The paginator instance containing query results.
      */
     public static function paginate(mixed $perPage): Paginator
     {
         $builder = self::query();
 
         return $builder->paginate($perPage);
+    }
+
+    /**
+     * Get the default value of a class property using reflection.
+     *
+     * Inspects the given class and retrieves the declared default value
+     * for the specified property. If the property does not exist or has
+     * no declared default value, the provided fallback value is returned.
+     *
+     * @param class-string|object $className Class name or object instance to inspect.
+     * @param string $propertyName Name of the property whose default value should be retrieved.
+     * @param mixed|null $default Fallback value returned when the property is not defined.
+     * @return mixed The declared default property value or the provided fallback value.
+     * @throws ReflectionException If the given class cannot be reflected.
+     */
+    public static function getDefaultPropertyValue(
+        string|object $className,
+        string $propertyName,
+        mixed $default = null
+    ): mixed {
+        $reflectionClass   = new ReflectionClass($className);
+        $defaultProperties = $reflectionClass->getDefaultProperties();
+
+        return array_key_exists($propertyName, $defaultProperties)
+            ? $defaultProperties[$propertyName]
+            : $default;
     }
 }

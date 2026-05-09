@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * Part of Omega - Database Package.
+ *
+ * @link      https://omega-mvc.github.io
+ * @author    Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version   1.0.0
+ */
+
 declare(strict_types=1);
 
 namespace Omega\Database\Migrations;
@@ -18,38 +28,70 @@ use function glob;
 use function in_array;
 use function method_exists;
 
+/**
+ * Migrator
+ *
+ * Responsible for discovering, executing, and tracking database migrations.
+ *
+ * This class scans migration directories, executes pending migration files,
+ * stores execution state in a dedicated migrations table, and supports full
+ * reset operations through the "fresh" method.
+ *
+ * It acts as the orchestration layer between the filesystem, database schema
+ * builder, and application versioning system.
+ *
+ * @category   Omega
+ * @package    Database
+ * @subpackage Migration
+ * @link       https://omega-mvc.github.io
+ * @author     Adriano Giovannini <agisoftt@gmail.com>
+ * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)
+ * @license    https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
+ * @version    1.0.0
+ */
 class Migrator
 {
-    /**
-     * The id of the migration.
-     *
-     * @var string|array
-     */
+    /** @var string|array Application identifier used as table prefix. */
     protected string|array $prefix;
 
+    /** @var string Base filesystem path where migrations are located. */
     protected string $path;
 
-    /**
-     * The application instance.
-     *
-     * @var Application
-     */
+    /** @var Application Application instance used for configuration and versioning. */
     protected Application $app;
 
-
+    /** @var string Name of the migrations tracking database table. */
     protected string $tableName;
 
+    /** @var mixed Previous installed application version used for conditional migrations. */
     protected mixed $oldVersion;
 
+    /**
+     * Create a new Migrator instance.
+     *
+     * Initializes application context, resolves migration paths, and loads
+     * the previously installed application version from persistent storage.
+     *
+     * @param Application $app The application instance providing configuration and metadata.
+     * @return void
+     */
     public function __construct(Application $app)
     {
-        $this->app = $app;
-        $this->prefix = $app->getIdAsUnderscore();
-        $this->path = $app->getBasePath();
-        $this->tableName = "{$this->prefix}_migrations";
+        $this->app        = $app;
+        $this->prefix     = $app->getIdAsUnderscore();
+        $this->path       = $app->getBasePath();
+        $this->tableName  = "{$this->prefix}_migrations";
         $this->oldVersion = get_option("{$this->prefix}_version", $app->version());
     }
 
+    /**
+     * Ensure that the migrations tracking table exists.
+     *
+     * Creates the migrations table if it does not already exist,
+     * using the schema builder to define structure and metadata.
+     *
+     * @return void
+     */
     public function maybeCreateMigrationsTable(): void
     {
         if (Database::tableExists($this->tableName)) {
@@ -64,6 +106,15 @@ class Migrator
         });
     }
 
+    /**
+     * Execute a single migration file.
+     *
+     * Loads the migration class from the given file, injects the previous
+     * application version, and executes the "up" method.
+     *
+     * @param string $file Absolute path to the migration file.
+     * @return bool True if the migration was executed successfully, false otherwise.
+     */
     public function processMigrationFile(string $file): bool
     {
         /** @var AbstractMigration $migration */
@@ -78,6 +129,14 @@ class Migrator
         return false;
     }
 
+    /**
+     * Run all pending migrations.
+     *
+     * Scans configured migration directories, filters already executed migrations,
+     * executes pending ones, and records execution in the migrations table.
+     *
+     * @return array<int, string>|null List of applied migration identifiers or null if none found.
+     */
     public function run()
     {
         $files = glob("$this->path/database/migrations/*.php");
@@ -127,6 +186,14 @@ class Migrator
         return $applied;
     }
 
+    /**
+     * Rollback all applied migrations and re-run them.
+     *
+     * Executes the "down" method for all recorded migrations, removes their
+     * tracking entries, and then re-applies all migrations from scratch.
+     *
+     * @return array<int, string>|null List of re-applied migration identifiers or null.
+     */
     public function fresh(): ?array
     {
         $model = Database::table($this->tableName);

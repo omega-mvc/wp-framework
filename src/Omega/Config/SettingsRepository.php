@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\Config;
 
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 
 use function array_keys;
 use function array_reduce;
@@ -67,11 +67,11 @@ class SettingsRepository
      * supporting dot-notation access for nested arrays and automatic merging of default
      * and stored settings.
      *
-     * @param Application $app The application instance used to resolve the option key prefix.
+     * @param ApplicationInterface $app The application instance used to resolve the option key prefix.
      * @param array $defaults Default configuration values used as base settings before merging stored data.
      * @return void
      */
-    public function __construct(protected Application $app, array $defaults = [])
+    public function __construct(protected ApplicationInterface $app, array $defaults = [])
     {
         $saved_config = get_option("{$this->app->getIdAsUnderscore()}_settings", []);
         $this->config = $this->mergeConfig($defaults, $saved_config);

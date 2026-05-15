@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\Admin\Menu;
 
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 
 use function add_action;
 use function add_menu_page;
@@ -58,9 +58,9 @@ abstract class AbstractMenuBuilder
      * Provides access to services, configuration, and dependency resolution
      * required during menu construction.
      *
-     * @param Application $app The application container instance.
+     * @param ApplicationInterface $app The application container instance.
      */
-    public function __construct(protected Application $app)
+    public function __construct(protected ApplicationInterface $app)
     {
     }
 

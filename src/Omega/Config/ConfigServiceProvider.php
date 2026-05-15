@@ -52,7 +52,7 @@ class ConfigServiceProvider extends ServiceProvider
     {
         $this->app->singleton('config', function () {
             $configPath = $this->app->getBasePath() . '/config';
-            $config     = [];
+			$config     = [];
             if (is_dir($configPath)) {
                 foreach (glob($configPath . '/*.php') as $file) {
                     $key          = basename($file, '.php');

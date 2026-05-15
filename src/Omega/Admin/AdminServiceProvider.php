@@ -106,7 +106,7 @@ class AdminServiceProvider extends ServiceProvider
      */
     public function adminSetup(): void
     {
-        $setupClass = $this->app->make('config')->string('app.admin.setup');
+        $setupClass = $this->app->make('config')->string('app.admin_setup');
 
         if (!class_exists($setupClass)) {
             return;

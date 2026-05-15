@@ -15,7 +15,7 @@ declare(strict_types=1);
 namespace Omega\Routing;
 
 use Exception;
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 use ReflectionException;
 
 use function end;
@@ -58,9 +58,9 @@ class RouterBuilder
      *
      * Initializes the builder with the application container instance.
      *
-     * @param Application $app Application container used for service resolution.
+     * @param ApplicationInterface $app Application container used for service resolution.
      */
-    public function __construct(protected Application $app)
+    public function __construct(protected ApplicationInterface $app)
     {
     }
 

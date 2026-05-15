@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\View;
 
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 use Omega\View\Exception\ViewFileNotFoundException;
 
 use function extract;
@@ -51,9 +51,9 @@ class View
     /**
      * Create a new view renderer instance.
      *
-     * @param Application $app The current application container instance.
+     * @param ApplicationInterface $app The current application container instance.
      */
-    public function __construct(protected Application $app)
+    public function __construct(protected ApplicationInterface $app)
     {
     }
 

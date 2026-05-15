@@ -49,11 +49,9 @@ use function rtrim;
  * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
  * @version   1.0.0
  */
-class Application extends Container
+class Application extends Container implements ApplicationInterface
 {
-    /** @var Application Singleton instance of the application. */
-    protected static Application $instance;
-
+	#region Property
     /** @var string Base path of the application. */
     protected string $basePath;
 
@@ -71,7 +69,9 @@ class Application extends Container
 
     /** @var string Root directory of the plugin. */
     protected string $pluginRoot;
+    #endregion
 
+	#region Public Method's
     /**
      * Create a new application instance and initialize core services.
      *
@@ -91,144 +91,55 @@ class Application extends Container
             $this->pluginRoot = rtrim($config['plugin_root'], '/');
         }
 
-        static::$instance = $this;
-
-        $this->instance('app', $this);
-        $this->instance(Container::class, $this);
-
         $this->registerBaseBindings();
         $this->registerBaseServiceProviders();
         $this->registerServiceProviders();
         $this->registerCoreContainerAliases();
     }
 
-    /**
-     * Get the current application instance.
-     *
-     * @return Application Return the application instance.
-     */
-    public static function getInstance(): Application
-    {
-        return static::$instance;
-    }
-
-    /**
-     * Get the unique application identifier.
-     *
-     * @return string Return the application identifier.
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function getId(): string
     {
         return $this->id;
     }
 
-    /**
-     * Get the application id in snake_case format.
-     *
-     * @return string|array Return the application in snake_case format.
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function getIdAsUnderscore(): array|string
     {
         return Str::toSnake($this->id);
     }
 
-    /**
-     * Get the base path of the application.
-     *
-     * @return string Return the absolute base path.
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function getBasePath(): string
     {
         return $this->basePath;
     }
 
-    /**
-     * Get the root directory of the plugin.
-     *
-     * @return string Return the plugin root dir.
-     */
-    public function pluginRoot(): string
+	/**
+	 * {@inheritdoc}
+	 */
+    public function getPluginRoot(): string
     {
         return $this->pluginRoot;
     }
 
-    /**
-     * Get the main plugin file path.
-     *
-     * @return string Return the plugin file.
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function getPluginFile(): string
     {
-        return "{$this->pluginRoot()}/{$this->getId()}.php";
+        return "{$this->getPluginRoot()}/{$this->getId()}.php";
     }
 
-    /**
-     * Set the base path for the application.
-     *
-     * @param string $basePath Base directory path
-     * @return void
-     */
-    protected function setBasePath(string $basePath): void
-    {
-        $this->basePath = rtrim($basePath, '/');
-    }
-
-    /**
-     * Register core container bindings required by the application.
-     *
-     * @return void
-     */
-    protected function registerBaseBindings()
-    {
-    }
-
-    /**
-     * Register the default framework service providers.
-     *
-     * @return void
-     */
-    protected function registerBaseServiceProviders(): void
-    {
-        $this->register(new ConfigServiceProvider($this));
-        $this->register(new RouterServiceProvider($this));
-        $this->register(new DatabaseServiceProvider($this));
-        $this->register(new ViewServiceProvider($this));
-        $this->register(new AdminServiceProvider($this));
-    }
-
-    /**
-     * Register user-defined service providers from configuration file.
-     *
-     * @return void
-     */
-    protected function registerServiceProviders(): void
-    {
-        $providersFile = $this->getBasePath() . '/config/providers.php';
-        if (file_exists($providersFile)) {
-            $providers = include $providersFile;
-            if (is_array($providers)) {
-                foreach ($providers as $provider) {
-                    $this->register($provider);
-                }
-            }
-        }
-    }
-
-    /**
-     * Register core container aliases for internal services.
-     *
-     * @return void
-     */
-    protected function registerCoreContainerAliases()
-    {
-    }
-
-    /**
-     * Register a service provider within the application container.
-     *
-     * @param object|string $provider Service provider class name or instance
-     * @return object|string Registered service provider instance
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function register(object|string $provider): object|string
     {
         $class = is_string($provider) ? $provider : get_class($provider);
@@ -250,13 +161,9 @@ class Application extends Container
         return $provider;
     }
 
-    /**
-     * Bootstrap all registered service providers.
-     *
-     * Calls the "boot" method on each provider if available.
-     *
-     * @return void
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function bootstrap(): void
     {
         foreach ($this->serviceProviders as $provider) {
@@ -266,13 +173,9 @@ class Application extends Container
         }
     }
 
-    /**
-     * Add a route file to the application.
-     *
-     * @param string $path Path to the route file
-     * @param string $type Route type (e.g. "api" or "admin")
-     * @return void
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function addRouteFile(string $path, string $type = 'api'): void
     {
         $this->routeFiles[] = [
@@ -281,22 +184,17 @@ class Application extends Container
         ];
     }
 
-    /**
-     * Register a migration folder path.
-     *
-     * @param string $path Directory containing migration files
-     * @return void
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function addMigrationFolder(string $path): void
     {
         $this->migrationFolders[] = $path;
     }
 
-    /**
-     * Get all registered API route file paths.
-     *
-     * @return array List of API route file paths
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function getRestRouteFiles(): array
     {
         return array_map(
@@ -305,11 +203,9 @@ class Application extends Container
         );
     }
 
-    /**
-     * Get all registered admin route file paths.
-     *
-     * @return array List of admin route file paths
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function getAdminRouteFiles(): array
     {
         return array_map(
@@ -318,22 +214,18 @@ class Application extends Container
         );
     }
 
-    /**
-     * Get all registered migration folder paths.
-     *
-     * @return array List of migration directories
-     */
+	/**
+	 * {@inheritdoc}
+	 */
     public function getMigrationFolders(): array
     {
         return $this->migrationFolders;
     }
 
-    /**
-     * Retrieve the plugin version from its main file header.
-     *
-     * @return string Plugin version or default if not found
-     */
-    public function version(): string
+	/**
+	 * {@inheritdoc}
+	 */
+    public function getVersion(): string
     {
         $plugin_file = $this->getPluginFile();
 
@@ -345,25 +237,87 @@ class Application extends Container
         return $data['Version'] ?? '1.0.0';
     }
 
-    /**
-     * Get the configuration repository instance.
-     *
-     * @return ConfigRepository Configuration service instance
-     * @throws ReflectionException If the service cannot be resolved
-     */
+	/**
+	 * {@inheritdoc}
+	 *
+	 * @throws ReflectionException If the service cannot be resolved
+	 */
     public function config(): ConfigRepository
     {
         return $this->make('config');
     }
 
     /**
-     * Get the settings repository instance.
+     * {@inheritdoc}
      *
-     * @return SettingsRepository Settings service instance
      * @throws ReflectionException If the service cannot be resolved
      */
     public function settings(): SettingsRepository
     {
         return $this->make('settings');
     }
+    #endregion
+
+	#region Protected Method's
+	/**
+	 * Set the base path for the application.
+	 *
+	 * @param string $basePath Base directory path
+	 * @return void
+	 */
+	protected function setBasePath(string $basePath): void
+	{
+		$this->basePath = rtrim($basePath, '/');
+	}
+
+	/**
+	 * Register core container bindings required by the application.
+	 *
+	 * @return void
+	 */
+	protected function registerBaseBindings()
+	{
+	}
+
+	/**
+	 * Register the default framework service providers.
+	 *
+	 * @return void
+	 */
+	protected function registerBaseServiceProviders(): void
+	{
+		$this->register(new ConfigServiceProvider($this));
+		$this->register(new RouterServiceProvider($this));
+		$this->register(new DatabaseServiceProvider($this));
+		$this->register(new ViewServiceProvider($this));
+		$this->register(new AdminServiceProvider($this));
+	}
+
+	/**
+	 * Register user-defined service providers from configuration file.
+	 *
+	 * @return void
+	 */
+	protected function registerServiceProviders(): void
+	{
+		$providersFile = $this->getBasePath() . '/config/providers.php';
+		if (file_exists($providersFile)) {
+			$providers = include $providersFile;
+			if (is_array($providers)) {
+				foreach ($providers as $provider) {
+					$this->register($provider);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Register core container aliases for internal services.
+	 *
+	 * @return void
+	 */
+	protected function registerCoreContainerAliases()
+	{
+	}
+	#endregion
 }

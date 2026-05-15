@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\Admin\Features;
 
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 
 /**
  * Base class for admin feature integrations.
@@ -36,9 +36,9 @@ abstract class AbstractFeatures implements FeaturesInterface
     /**
      * Create a new WooCommerce integration instance.
      *
-     * @param Application $app The current application instance.
+     * @param ApplicationInterface $app The current application instance.
      */
-    public function __construct(protected Application $app)
+    public function __construct(protected ApplicationInterface $app)
     {
     }
 

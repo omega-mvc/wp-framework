@@ -17,7 +17,7 @@ declare(strict_types=1);
 namespace Omega\Routing;
 
 use Exception;
-use Omega\Application\ApplicationInstance;
+use Omega\Application\ApplicationFactory;
 use Omega\Http\FormRequest;
 use Omega\Http\Json\JsonResource;
 use Omega\Http\Json\ResourceCollection;
@@ -342,7 +342,7 @@ class Router
                 }
 
                 try {
-                    $resolved[] = ApplicationInstance::app($className);
+                    $resolved[] = ApplicationFactory::app($className);
                     continue;
                 } catch (Exception) {
                     throw new Exception(

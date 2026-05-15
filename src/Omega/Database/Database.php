@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\Database;
 
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 use Omega\Database\Migrations\Migrator;
 use Omega\Database\Eloquent\QueryBuilder;
 use ReflectionException;
@@ -65,10 +65,10 @@ class Database
      * Initializes the WordPress database connection and resolves
      * the migration manager from the application container.
      *
-     * @param Application $app The current application container instance.
+     * @param ApplicationInterface $app The current application container instance.
      * @throws ReflectionException Thrown when the migrator service cannot be resolved.
      */
-    public function __construct(Application $app)
+    public function __construct(ApplicationInterface $app)
     {
         global $wpdb;
 

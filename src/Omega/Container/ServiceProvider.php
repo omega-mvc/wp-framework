@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\Container;
 
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 
 /**
  * Base service provider class.
@@ -42,10 +42,10 @@ class ServiceProvider
     /**
      * Create a new service provider instance.
      *
-     * @param Application $app The application instance used to access the container and core services.
+     * @param ApplicationInterface $app The application instance used to access the container and core services.
      * @return void
      */
-    public function __construct(public Application $app)
+    public function __construct(public ApplicationInterface $app)
     {
     }
 

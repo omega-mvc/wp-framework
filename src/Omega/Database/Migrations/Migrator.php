@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\Database\Migrations;
 
-use Omega\Application\Application;
+use Omega\Application\ApplicationInterface;
 use Omega\Database\Database;
 use Omega\Database\Schema\Blueprint;
 use Omega\Database\Schema\Schema;
@@ -58,7 +58,7 @@ class Migrator
     protected string $path;
 
     /** @var Application Application instance used for configuration and versioning. */
-    protected Application $app;
+    protected ApplicationInterface $app;
 
     /** @var string Name of the migrations tracking database table. */
     protected string $tableName;
@@ -72,16 +72,16 @@ class Migrator
      * Initializes application context, resolves migration paths, and loads
      * the previously installed application version from persistent storage.
      *
-     * @param Application $app The application instance providing configuration and metadata.
+     * @param ApplicationInterface $app The application instance providing configuration and metadata.
      * @return void
      */
-    public function __construct(Application $app)
+    public function __construct(ApplicationInterface $app)
     {
         $this->app        = $app;
         $this->prefix     = $app->getIdAsUnderscore();
         $this->path       = $app->getBasePath();
         $this->tableName  = "{$this->prefix}_migrations";
-        $this->oldVersion = get_option("{$this->prefix}_version", $app->version());
+        $this->oldVersion = get_option("{$this->prefix}_version", $app->getVersion());
     }
 
     /**

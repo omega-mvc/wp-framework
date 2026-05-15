@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Omega\Facade;
 
-use Omega\Application\ApplicationInstance;
+use Omega\Application\ApplicationFactory;
 use Omega\Facade\Exception\FacadeObjectNotSetException;
 use RuntimeException;
 
@@ -93,7 +93,7 @@ abstract class AbstractFacade implements FacadeInterface
             return static::$resolvedInstance[$name];
         }
 
-        return static::$resolvedInstance[$name] = ApplicationInstance::app($name);
+        return static::$resolvedInstance[$name] = ApplicationFactory::app($name);
     }
 
     /**

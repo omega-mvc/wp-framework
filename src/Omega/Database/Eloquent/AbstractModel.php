@@ -15,7 +15,7 @@ declare(strict_types=1);
 namespace Omega\Database\Eloquent;
 
 use ArrayAccess;
-use Omega\Application\ApplicationInstance;
+use Omega\Application\ApplicationFactory;
 use Omega\Collection\Collection;
 use Omega\Database\Database;
 use Omega\Database\Eloquent\Casts\ArrayCast;
@@ -153,7 +153,7 @@ abstract class AbstractModel implements ArrayAccess
      */
     public function __construct(array $data = [], ?string $table = null)
     {
-        $this->db         = ApplicationInstance::app('database');
+        $this->db         = ApplicationFactory::app('database');
         $this->table      = $table ?? self::getFullTableName();
         $this->foreignKey = $this->modelToForeign(get_called_class());
         $this->data       = $data;

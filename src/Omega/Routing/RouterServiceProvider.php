@@ -15,9 +15,9 @@ declare(strict_types=1);
 namespace Omega\Routing;
 
 use Omega\Container\ServiceProvider;
+use ReflectionException;
 
 use function add_action;
-use function file_exists;
 
 /**
  * Registers and bootstraps application routing for both REST API and admin areas.
@@ -47,71 +47,30 @@ class RouterServiceProvider extends ServiceProvider
     /**
      * {@inheritdoc}
      */
-    public function register(): void
-    {
-        $this->app->singleton('router', function ($app) {
-            return new RouterBuilder($app);
-        });
-    }
+	public function register(): void
+	{
+		$this->app->singleton('router', function ($app) {
+			return new RouterBuilder($app);
+		});
 
-    /**
-     * {@inheritdoc}
-     */
+		$this->app->singleton(RouteLoader::class, function ($app) {
+			return new RouteLoader($app);
+		});
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * @throws ReflectionException
+	 */
     public function boot(): void
     {
-        add_action('rest_api_init', [$this, 'registerRestRoutes']);
-        add_action('admin_menu', [$this, 'registerAdminRoutes'], 99);
-    }
+	    add_action('rest_api_init', function () {
+		    $this->app->make(RouteLoader::class)->loadRestRoutes();
+	    });
 
-    /**
-     * Load and register REST API route definition files.
-     *
-     * This method loads the default API routes file along with any additional
-     * route files registered in the application configuration.
-     *
-     * Only existing files are included to prevent runtime errors.
-     *
-     * @return void
-     */
-    public function registerRestRoutes(): void
-    {
-        $apiRoutesPath = $this->app->getBasePath() . '/routes/api.php';
-
-        $routes = [
-            $apiRoutesPath,
-            ...$this->app->getRestRouteFiles()
-        ];
-
-        foreach ($routes as $routeFile) {
-            if (file_exists($routeFile)) {
-                require_once $routeFile;
-            }
-        }
-    }
-
-    /**
-     * Load and register admin route definition files.
-     *
-     * This method loads the default admin routes file along with any additional
-     * route files registered in the application configuration.
-     *
-     * Only existing files are included to ensure safe inclusion.
-     *
-     * @return void
-     */
-    public function registerAdminRoutes(): void
-    {
-        $adminRoutesPath = $this->app->getBasePath() . '/routes/admin.php';
-
-        $routes = [
-            $adminRoutesPath,
-            ...$this->app->getAdminRouteFiles()
-        ];
-
-        foreach ($routes as $routeFile) {
-            if (file_exists($routeFile)) {
-                require_once $routeFile;
-            }
-        }
+	    add_action('admin_menu', function () {
+		    $this->app->make(RouteLoader::class)->loadAdminRoutes();
+	    }, 99);
     }
 }

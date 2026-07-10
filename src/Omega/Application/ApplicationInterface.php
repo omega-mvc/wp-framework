@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Omega\Application;
 
 use Omega\Config\ConfigRepository;
-use Omega\Config\SettingsRepository;
+use Omega\Settings\SettingsRepository;
 
 interface ApplicationInterface
 {
@@ -35,14 +35,14 @@ interface ApplicationInterface
 	 *
 	 * @return string Return the plugin root dir.
 	 */
-	public function getPluginRoot(): string;
+	public function getAppRoot(): string;
 
 	/**
 	 * Get the main plugin file path.
 	 *
 	 * @return string Return the plugin file.
 	 */
-	public function getPluginFile(): string;
+	public function getAppFile(): string;
 
 	/**
 	 * Register a service provider within the application container.
@@ -100,12 +100,24 @@ interface ApplicationInterface
 	public function getMigrationFolders(): array;
 
 	/**
-	 * Retrieve the plugin version from its main file header.
+	 * Get the name of the application framework.
 	 *
-	 * @return string Plugin version or default if not found
+	 * This value identifies the core framework instance and is independent
+	 * from any plugin, theme, or application-specific metadata.
+	 *
+	 * @return string The framework name.
+	 */
+	public function getName(): string;
+
+	/**
+	 * Get the version of the application framework.
+	 *
+	 * This value represents the current version of the core framework
+	 * and is independent of any plugin, theme, or application-specific versioning.
+	 *
+	 * @return string The framework version.
 	 */
 	public function getVersion(): string;
-
 	/**
 	 * Get the configuration repository instance.
 	 *
@@ -119,4 +131,29 @@ interface ApplicationInterface
 	 * @return SettingsRepository Settings service instance
 	 */
 	public function settings(): SettingsRepository;
+
+    /**
+     * Retrieve a metadata value from the application header.
+     *
+     * This method provides a unified way to access metadata information
+     * defined in the application's main entry file (for plugins) or
+     * stylesheet header (for themes).
+     *
+     * The concrete implementation depends on the application type:
+     * - Plugin applications typically read headers from the main plugin file
+     *   using WordPress' `get_file_data()` function.
+     * - Theme applications retrieve header values using the `WP_Theme` API
+     *   or related WordPress theme metadata functions.
+     *
+     * This abstraction ensures a consistent API for accessing application
+     * metadata regardless of whether the underlying implementation is a
+     * WordPress plugin or theme.
+     *
+     * @param string $headerKey The name of the header field to retrieve
+     *                      (e.g. "Version", "Author", "Text Domain").
+     * @return string The value of the requested header field.
+     *               Returns an empty string if the field does not exist
+     *               or cannot be resolved.
+     */
+    public function getHeaderField(string $headerKey): string;
 }

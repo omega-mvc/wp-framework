@@ -62,9 +62,5 @@ class ConfigServiceProvider extends ServiceProvider
 
             return new ConfigRepository($config);
         });
-
-        $this->app->singleton('settings', function ($app) {
-            return new SettingsRepository($app);
-        });
     }
 }

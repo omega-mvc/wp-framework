@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Omega\Config;
+namespace Omega\Settings;
 
 use Omega\Application\ApplicationInterface;
 
@@ -48,7 +48,7 @@ use function update_option;
  * service definitions, and environment-specific constants.
  *
  * @category  Omega
- * @package   Config
+ * @package   Settings
  * @link      https://omega-mvc.github.io
  * @author    Adriano Giovannini <agisoftt@gmail.com>
  * @copyright Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)

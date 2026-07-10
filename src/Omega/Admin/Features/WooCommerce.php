@@ -67,8 +67,8 @@ class WooCommerce extends AbstractFeatures
     public function registerFeatures(): void
     {
         if (class_exists(FeaturesUtil::class)) {
-            FeaturesUtil::declare_compatibility('custom_order_tables', $this->app->getPluginFile(), true);
-            FeaturesUtil::declare_compatibility('product_block_editor', $this->app->getPluginFile(), true);
+            FeaturesUtil::declare_compatibility('custom_order_tables', $this->app->getAppFile(), true);
+            FeaturesUtil::declare_compatibility('product_block_editor', $this->app->getAppFile(), true);
         }
     }
 }

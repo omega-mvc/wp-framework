@@ -81,7 +81,7 @@ class Migrator
         $this->prefix     = $app->getIdAsUnderscore();
         $this->path       = $app->getBasePath();
         $this->tableName  = "{$this->prefix}_migrations";
-        $this->oldVersion = get_option("{$this->prefix}_version", $app->getVersion());
+        $this->oldVersion = get_option("{$this->prefix}_version", $app->getPluginVersion());
     }
 
     /**

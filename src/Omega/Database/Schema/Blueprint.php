@@ -221,6 +221,11 @@ class Blueprint
                 if ($command instanceof ForeignKeyDefinition) {
                     $columnsSql[] = $command->getForeignKeySql();
                 }
+
+                if ( is_array( $command ) && in_array( $command[0], [ 'index', 'unique' ], true ) ) {
+                    $keyword = 'unique' === $command[0] ? 'UNIQUE KEY' : 'KEY';
+                    $columnsSql[] = "$keyword `{$command[1]}` (" . $this->quoteIndexColumns( $command[2] ) . ")";
+                }
             }
         }
 
@@ -309,11 +314,31 @@ class Blueprint
                 }
             }
 
-            if ('dropUnique' === $command[0] && !empty($command[1])) {
+            if (in_array($command[0], ['dropIndex', 'dropUnique'], true) && !empty($command[1])) {
                 $indexName = (string)$command[1];
 
                 if ($this->indexExists($tableName, $indexName)) {
                     $wpdb->query("ALTER TABLE `$tableName` DROP INDEX `$indexName`;");
+                }
+            }
+        }
+    }
+
+    private function runIndexCommands(string $tableName): void
+    {
+        global $wpdb;
+
+        foreach ($this->commands as $command) {
+            if (!is_array($command) || empty($command[0]) || empty($command[1])) {
+                continue;
+            }
+
+            if (in_array($command[0], ['index', 'unique'], true)) {
+                $indexName = (string)$command[1];
+
+                if (!$this->indexExists($tableName, $indexName)) {
+                    $keyword = 'unique' === $command[0] ? 'UNIQUE INDEX' : 'INDEX';
+                    $wpdb->query("ALTER TABLE `$tableName` ADD $keyword `$indexName` (" . $this->quoteIndexColumns($command[2]) . ");");
                 }
             }
         }
@@ -370,6 +395,8 @@ class Blueprint
                     $wpdb->query($sql);
                 }
             }
+
+            $this->runIndexCommands($tableName);
         }
     }
 
@@ -627,21 +654,81 @@ class Blueprint
     }
 
     /**
-     * Register an index-related schema command.
+     * Specify an index for the table.
      *
-     * This method acts as the internal entry point for index creation
-     * commands such as primary, unique, and standard indexes.
-     *
-     * @param mixed $type Index command type.
-     * @param mixed $columns Columns associated with the index.
-     * @param mixed $index Index name.
-     * @param mixed|null $algorithm Optional index algorithm.
-     * @return static The current blueprint instance.
+     * @param  string|array  $columns
+     * @param  string|null  $name
+     * @return $this
      */
-    protected function indexCommand($type, $columns, $index, $algorithm = null): static
+    public function index(string|array $columns, ?string $name = null): static
     {
-        // implementation of indexCommand
+        return $this->indexCommand( 'index', $columns, $name );
+    }
+
+    /**
+     * Specify a unique index for the table.
+     *
+     * @param  string|array  $columns
+     * @param  string|null  $name
+     * @return $this
+     */
+    public function unique(string|array  $columns, ?string $name = null): static
+    {
+        return $this->indexCommand( 'unique', $columns, $name );
+    }
+
+    /**
+     * Add a new index command to the blueprint.
+     *
+     * @param  string  $type
+     * @param  string|array  $columns
+     * @param  string|null  $index
+     * @return $this
+     */
+    protected function indexCommand(string $type, string|array $columns, ?string $index = null): static
+    {
+        $columns = (array) $columns;
+
+        $index = $index ?: $this->createIndexName( $type, $columns );
+
+        $this->commands[] = [ $type, $index, $columns ];
+
         return $this;
+    }
+
+    /**
+     * Create a default index name for the table.
+     *
+     * @param  string  $type
+     * @param  array  $columns
+     * @return string
+     */
+    protected function createIndexName(string $type, array $columns ): string
+    {
+        $index = strtolower( $this->table . '_' . implode( '_', $columns ) . '_' . $type );
+
+        return str_replace( [ '-', '.', '(', ')' ], [ '_', '_', '_', '' ], $index );
+    }
+
+    /**
+     * Quote index columns, supporting prefix lengths like "column(20)".
+     *
+     * @param  array  $columns
+     * @return string
+     */
+    private function quoteIndexColumns( array $columns ): string
+    {
+        $quoted = [];
+
+        foreach ( $columns as $column ) {
+            if ( preg_match( '/^(\w+)\s*\((\d+)\)$/', $column, $matches ) ) {
+                $quoted[] = "`{$matches[1]}`({$matches[2]})";
+            } else {
+                $quoted[] = "`$column`";
+            }
+        }
+
+        return implode( ', ', $quoted );
     }
 
     /**
@@ -727,6 +814,17 @@ class Blueprint
     }
 
     /**
+     * Indicate that the given index should be dropped.
+     *
+     * @param  string|array  $index  Index name or array of columns to resolve the conventional name.
+     * @return $this
+     */
+    public function dropIndex(string|array $index): static
+    {
+        return $this->dropIndexCommand( 'dropIndex', 'index', $index );
+    }
+
+    /**
      * Queue a unique index drop operation for the table.
      *
      * The unique index removal command will be executed when
@@ -737,7 +835,24 @@ class Blueprint
      */
     public function dropUnique(string $index): static
     {
-        $this->commands[] = ['dropUnique', $index];
+        return $this->dropIndexCommand( 'dropUnique', 'unique', $index );
+    }
+
+    /**
+     * Add a new drop index command to the blueprint.
+     *
+     * @param  string  $command
+     * @param  string  $type
+     * @param  string|array  $index
+     * @return $this
+     */
+    protected function dropIndexCommand(string $command, string $type, string|array $index): static
+    {
+        if ( is_array( $index ) ) {
+            $index = $this->createIndexName( $type, $index );
+        }
+
+        $this->commands[] = [ $command, $index ];
 
         return $this;
     }

@@ -12,10 +12,10 @@
 
 declare(strict_types=1);
 
-namespace Omega\Config\Facades;
+namespace Omega\Settings\Facade;
 
-use Omega\Config\SettingsRepository;
 use Omega\Facade\AbstractFacade;
+use Omega\Settings\SettingsRepository;
 
 /**
  * Facade providing a static interface to the SettingsRepository service.
@@ -31,8 +31,8 @@ use Omega\Facade\AbstractFacade;
  * application settings without requiring direct dependency injection.
  *
  * @category   Omega
- * @package    Config
- * @subpackage Facades
+ * @package    Settings
+ * @subpackage Facade
  * @link       https://omega-mvc.github.io
  * @author     Adriano Giovannini <agisoftt@gmail.com>
  * @copyright  Copyright (c) 2026 Adriano Giovannini (https://omega-mvc.github.io)

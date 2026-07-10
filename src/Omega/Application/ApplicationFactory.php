@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Omega\Application;
 
-use Omega\Application\Exception\FileNotFoundException;
-use Omega\Application\Exception\MissingParameterException;
 use Omega\Str\Str;
 use ReflectionException;
 
@@ -20,42 +18,66 @@ use function str_contains;
 
 class ApplicationFactory
 {
-    /** @var Application[] Omega Application Container. */
+    /** @var array<string, ApplicationPlugin|ApplicationTheme> Omega Application Container. */
     private static array $apps = [];
 
     /**
-     * Initializes the Omega configuration.
+     * Create and initialize a new Plugin application instance.
      *
-     * @param string $id     Required parameter.
-     * @param array  $config Optional configuration.
-     * @return Application Return Application instance.
-     * @throws FileNotFoundException If the file for given id not exists.
-     * @throws MissingParameterException if the id or base_path is missing
+     * This method is responsible for constructing an ApplicationPlugin instance,
+     * registering it in the internal applications registry, and executing its
+     * full bootstrap process.
+     *
+     * The plugin application represents a WordPress plugin environment and
+     * expects the provided base path to contain a valid plugin structure,
+     * including the main plugin entry file.
+     *
+     * After creation, the application is immediately bootstrapped, meaning
+     * all service providers, bindings, and core framework components are
+     * registered and made available.
+     *
+     * @param string $id Unique identifier of the plugin application.
+     *                   This is typically the plugin directory name and must
+     *                   match the plugin entry file name.
+     *
+     * @param string $basePath Absolute path to the root directory of the plugin.
+     *
+     * @return ApplicationPlugin Fully initialized and bootstrapped plugin application instance.
      */
-    public static function create(string $id, array $config = []): Application
+    public static function createPlugin(string $id, string $basePath): ApplicationPlugin
     {
-        if (empty($id)) {
-            throw new MissingParameterException('The "id" parameter is required.');
-        }
+        self::$apps[$id] = new ApplicationPlugin(id: $id, basePath: $basePath);
 
-        if (!isset($config['base_path'])) {
-            throw new MissingParameterException('The "base_path" parameter is required.');
-        }
+        self::$apps[$id]->bootstrap();
 
-        if (!isset($config['plugin_root'])) {
-            $config['plugin_root'] = $config['base_path'];
-        }
+        return self::$apps[$id];
+    }
 
-        if (!file_exists($config['plugin_root'] . "/$id.php")) {
-            throw new FileNotFoundException(
-                sprintf(
-                "The plugin file for %s does not exist in the specified plugin root, in ApplicationFactory::create configure plugin_root.",
-                    $id
-                )
-            );
-        }
-
-        self::$apps[$id] = new Application(config: $config, id: $id);
+    /**
+     * Create and initialize a new Theme application instance.
+     *
+     * This method constructs an ApplicationTheme instance, registers it in the
+     * internal applications registry, and triggers its bootstrap process.
+     *
+     * The theme application represents a WordPress theme environment and expects
+     * the provided base path to contain a valid theme structure, including the
+     * required style.css file used as the theme entry point.
+     *
+     * After instantiation, the application is immediately bootstrapped, which
+     * registers all service providers, container bindings, and framework core
+     * services required for runtime execution.
+     *
+     * @param string $id Unique identifier of the theme application.
+     *                   This is typically the theme directory name and must
+     *                   correspond to the WordPress theme folder structure.
+     *
+     * @param string $basePath Absolute path to the root directory of the theme.
+     *
+     * @return ApplicationTheme Fully initialized and bootstrapped theme application instance.
+     */
+    public static function createTheme(string $id, string$basePath): ApplicationTheme
+    {
+        self::$apps[$id] = new ApplicationTheme(id: $id, basePath: $basePath);
 
         self::$apps[$id]->bootstrap();
 
@@ -78,7 +100,7 @@ class ApplicationFactory
             foreach ($trace as $frame) {
                 if (isset($frame['file'])) {
                     foreach (array_keys(self::$apps) as $id) {
-                        $pluginFile = self::$apps[$id]->getPluginRoot();
+                        $pluginFile = self::$apps[$id]->getAppRoot();
                         if (str_contains($frame['file'], $pluginFile)) {
                             $appId = $id;
                             break 2;
@@ -89,7 +111,7 @@ class ApplicationFactory
 
             if (!$appId) {
                 foreach (self::$apps as $id => $app) {
-                    $composerJson = $app->getPluginRoot() . '/composer.json';
+                    $composerJson = $app->getAppRoot() . '/composer.json';
                     if (file_exists($composerJson)) {
                         $data = json_decode(\file_get_contents($composerJson), true);
                         $psr4 = array_keys($data['autoload']['psr-4'] ?? []);

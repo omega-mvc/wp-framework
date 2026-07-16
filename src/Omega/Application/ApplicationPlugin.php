@@ -47,7 +47,7 @@ use function sprintf;
  * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html     GPL V3.0+
  * @version   1.0.0
  */
-class ApplicationPlugin extends AbstractApplication
+class ApplicationPlugin extends Application
 {
 	/**
 	 * The name of the framework.
@@ -58,7 +58,7 @@ class ApplicationPlugin extends AbstractApplication
 	 *
 	 * @var string
 	 */
-	protected const string NAME = 'Omega';
+	protected const string NAME = 'Omega Plugin';
 
 	/**
 	 * The version of the framework.
@@ -106,22 +106,6 @@ class ApplicationPlugin extends AbstractApplication
                 )
             );
         }
-	}
-
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getName(): string
-	{
-		return static::NAME;
-	}
-
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getVersion(): string
-	{
-		return static::VERSION;
 	}
 
     /**

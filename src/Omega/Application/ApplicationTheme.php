@@ -46,7 +46,7 @@ use function wp_get_theme;
  * @license   https://www.gnu.org/licenses/gpl-3.0-standalone.html GPL V3.0+
  * @version   1.0.0
  */
-class ApplicationTheme extends AbstractApplication
+class ApplicationTheme extends Application
 {
 	/**
 	 * The name of the framework.
@@ -57,7 +57,7 @@ class ApplicationTheme extends AbstractApplication
 	 *
 	 * @var string
 	 */
-	protected const string NAME = 'Omega';
+	protected const string NAME = 'Omega Theme';
 
 	/**
 	 * The version of the framework.
@@ -97,22 +97,6 @@ class ApplicationTheme extends AbstractApplication
     {
         parent::__construct($id, $basePath);
     }
-
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getName(): string
-	{
-		return static::NAME;
-	}
-
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getVersion(): string
-	{
-		return static::VERSION;
-	}
 
     /**
      * {@inheritdoc}

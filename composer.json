@@ -1,6 +1,7 @@
 {
     "name": "omega-mvc/omega-wp-framework",
     "description": "Omega WP Framework is a framework for creating WordPress plugins based on Laravel. It includes support for database (Laravel Eloquent), Controllers, Validator, Routes, and more.",
+    "version": "1.0.0",
     "type": "library",
     "license": "GPL-3.0",
     "minimum-stability": "stable",

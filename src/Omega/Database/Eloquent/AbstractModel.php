@@ -49,8 +49,8 @@ use function ucwords;
 /**
  * Base active record implementation for the Omega Eloquent ORM layer.
  *
- * This abstract model provides a lightweight ORM inspired by Laravel Eloquent,
- * built specifically for the Omega framework and the WordPress ecosystem.
+ * This abstract model provides a lightweight ORM, built specifically for the
+ * Omega framework and the WordPress ecosystem.
  *
  * It offers:
  * - dynamic attribute access

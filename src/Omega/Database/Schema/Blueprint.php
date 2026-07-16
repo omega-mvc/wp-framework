@@ -39,8 +39,8 @@ use function is_array;
  * while schema commands such as dropping columns or indexes are tracked
  * separately and executed during the migration process.
  *
- * This implementation is inspired by Laravel's schema builder while being
- * adapted for WordPress database compatibility and runtime simplicity.
+ * This implementation is schema builder while being adapted for WordPress database
+ * compatibility and runtime simplicity.
  *
  * @category   Omega
  * @package    Database

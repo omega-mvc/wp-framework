@@ -10,6 +10,7 @@
 
  - Adding container exception.
  - Adding container interface.
+ - Adding container tests
 
 ### Changed
 
@@ -21,4 +22,4 @@
 
 ### Removed
 
-- None.
+- Removed Omega Kernel dependency.

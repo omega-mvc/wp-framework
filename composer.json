@@ -4,34 +4,29 @@
     "version": "1.0.0",
     "type": "library",
     "license": "GPL-3.0",
-    "minimum-stability": "stable",
-    "autoload": {
-        "psr-4": {
-            "Omega\\": "src/Omega"
-        }
-    },
     "authors": [
         {
             "name": "Adriano Giovannini",
             "homepage": "https://omega-mvc.github.io/"
         }
     ],
-    "archive": {
-        "exclude": [
-            "/tests",
-            "/docs",
-            "/.vscode",
-            "*.md",
-            "build/",
-            "examples/"
-        ]
-    },
     "require": {
-        "omega-mvc/omega-kernel": "^1.0.0"
+        "php": "^8.4"
     },
     "require-dev": {
-        "phpunit/phpunit": "^13.1",
-        "squizlabs/php_codesniffer": "^4.0",
-        "php-stubs/wordpress-stubs": "^6.9"
-    }
+        "php-stubs/wordpress-stubs": "^6.9",
+        "phpunit/phpunit": "^13.2",
+        "squizlabs/php_codesniffer": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Omega\\": "src/Omega"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable"
 }

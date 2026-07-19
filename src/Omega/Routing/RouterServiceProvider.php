@@ -66,11 +66,11 @@ class RouterServiceProvider extends ServiceProvider
     public function boot(): void
     {
 	    add_action('rest_api_init', function () {
-		    $this->app->make(RouteLoader::class)->loadRestRoutes();
+		    $this->app->resolve(RouteLoader::class)->loadRestRoutes();
 	    });
 
 	    add_action('admin_menu', function () {
-		    $this->app->make(RouteLoader::class)->loadAdminRoutes();
+		    $this->app->resolve(RouteLoader::class)->loadAdminRoutes();
 	    }, 99);
     }
 }

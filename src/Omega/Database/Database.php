@@ -73,7 +73,7 @@ class Database
         global $wpdb;
 
         $this->wpdb     = $wpdb;
-        $this->migrator = $app->make('migrator');
+        $this->migrator = $app->resolve('migrator');
     }
 
     /**

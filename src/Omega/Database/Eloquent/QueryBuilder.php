@@ -733,7 +733,6 @@ class QueryBuilder
     }
 
     /**
-    /**
      * Register a single relationship for eager loading.
      *
      * Validates the relationship method, resolves its return type,
@@ -1090,7 +1089,6 @@ class QueryBuilder
     }
 
     /**
-    /**
      * Hydrate model results with their eager-loaded relations.
      *
      * Processes the configured `withArray` relations and executes batched queries
@@ -1149,7 +1147,6 @@ class QueryBuilder
         return $relations;
     }
 
-    /**
     /**
      * Execute the query and return a collection of hydrated model instances.
      *
@@ -1223,7 +1220,6 @@ class QueryBuilder
         return $this;
     }
 
-    /**
     /**
      * Limit the number of results returned by the query.
      *

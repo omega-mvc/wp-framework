@@ -132,6 +132,6 @@ class ApplicationFactory
             return self::$apps[$appId];
         }
 
-        return self::$apps[$appId]->make($service);
+        return self::$apps[$appId]->resolve($service);
     }
 }

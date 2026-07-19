@@ -62,7 +62,6 @@ class ServiceProvider
     }
 
     /**
-    /**
      * Bootstrap application services.
      *
      * This method is executed after all service providers have been registered,

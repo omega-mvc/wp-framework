@@ -1,3 +1,0 @@
-NOTE PER IL REFACTORING
-
-- I metodo getName e getVersion attualmente forniti da ApplicationInterface, sono il duplicato di quelli forniti da AbstractApplictionInterface e andranno usati quelli.

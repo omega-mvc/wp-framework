@@ -112,7 +112,7 @@ class RouterBuilder
     {
         $instance = $this->getInstance();
 
-        $this->app->make('admin.manager')->addHiddenNoticesPage($id);
+        $this->app->resolve('admin.manager')->addHiddenNoticesPage($id);
 
         $instance->page($id, $options);
 

@@ -69,10 +69,10 @@ class AdminServiceProvider extends ServiceProvider
         add_action('init', [$this, 'init']);
 
         foreach ($this->features as $feature) {
-            $this->app->make($feature)->init();
+            $this->app->resolve($feature)->init();
         }
 
-        $this->app->make('admin.manager')->init();
+        $this->app->resolve('admin.manager')->init();
     }
 
     /**
@@ -85,7 +85,7 @@ class AdminServiceProvider extends ServiceProvider
      */
     public function init(): void
     {
-        $enableTranslation = $this->app->make('config')->boolean('app.translation.enable');
+        $enableTranslation = $this->app->resolve('config')->boolean('app.translation.enable');
 
         if ($enableTranslation === true) {
             load_plugin_textdomain(
@@ -106,7 +106,7 @@ class AdminServiceProvider extends ServiceProvider
      */
     public function adminSetup(): void
     {
-        $setupClass = $this->app->make('config')->string('app.admin_setup');
+        $setupClass = $this->app->resolve('config')->string('app.admin_setup');
 
         if (!class_exists($setupClass)) {
             return;
@@ -126,7 +126,7 @@ class AdminServiceProvider extends ServiceProvider
      */
     public function adminMenu(): void
     {
-        $menuClass = $this->app->make('config')->string('app.admin.menu');
+        $menuClass = $this->app->resolve('config')->string('app.admin.menu');
 
         if (!class_exists($menuClass)) {
             return;

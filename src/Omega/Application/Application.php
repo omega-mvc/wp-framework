@@ -214,7 +214,7 @@ class Application extends AbstractApplication
 	 */
 	public function config(): ConfigRepository
 	{
-		return $this->make('config');
+		return $this->resolve('config');
 	}
 
 	/**
@@ -224,7 +224,7 @@ class Application extends AbstractApplication
 	 */
 	public function settings(): SettingsRepository
 	{
-		return $this->make('settings');
+		return $this->resolve('settings');
 	}
 
 	/**

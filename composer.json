@@ -11,8 +11,7 @@
         }
     ],
     "require": {
-        "php": "^8.4",
-        "omega-mvc/omega-kernel": "^1.0.0"
+        "php": "^8.4"
     },
     "require-dev": {
         "php-stubs/wordpress-stubs": "^6.9",

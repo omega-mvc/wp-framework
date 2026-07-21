@@ -18,6 +18,8 @@ namespace Omega\Database\Schema;
 
 use Omega\Collection\Collection;
 
+use Omega\Database\Exceptions\SchemaQueryException;
+
 use function array_merge;
 use function compact;
 use function count;
@@ -69,6 +71,9 @@ class Blueprint
      * The table name is later used when generating schema SQL statements.
      *
      * @param string $table Database table name handled by the blueprint.
+     * @return void
+     *
+     * @noinspection PhpGetterAndSetterCanBeReplacedWithPropertyHooksInspection
      */
     public function __construct(protected string $table)
     {
@@ -357,48 +362,74 @@ class Blueprint
      */
     public function run(): void
     {
-        global $wpdb;
+	    global $wpdb;
 
-        if ($this->command === 'create') {
-            $tableName = $wpdb->prefix . $this->table;
+	    if ($this->command === 'create') {
 
-            if ($this->tableExists($tableName)) {
-                return;
-            }
+		    $tableName = $wpdb->prefix . $this->table;
 
-            $columnsSql = $this->prepareColumns();
+		    if ($this->tableExists( $tableName)) {
+			    return;
+		    }
 
-            $columnsDef = implode(",\n  ", $columnsSql);
+		    $columnsSql = $this->prepareColumns();
 
-            $sql = "CREATE TABLE `$tableName` (\n  $columnsDef\n) {$wpdb->get_charset_collate()};";
-            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		    $columnsDef = \implode( ",\n  ", $columnsSql );
 
-            $wpdb->query($sql);
-        } else {
-            $tableName = $wpdb->prefix . $this->table;
+		    // Pin the engine instead of inheriting the server default: foreign keys are silently
+		    // ignored by MyISAM, and a table created on a MyISAM-defaulting host can never be
+		    // referenced by one, which fails the child's CREATE with errno 150.
+		    $sql = "CREATE TABLE `$tableName` (\n  $columnsDef\n) ENGINE=InnoDB {$wpdb->get_charset_collate()};";
+		    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-            $this->runAlterCommands($tableName);
+		    $this->query( $sql, $tableName );
+	    } else {
+		    $tableName = $wpdb->prefix . $this->table;
 
-            foreach ($this->columns as $column) {
-                $columnName = $column->getName();
+		    $this->runAlterCommands($tableName);
 
-                if (!$this->columnExists($tableName, $columnName)) {
-                    $columnSql = $this->generateSingleColumnSql($column);
+		    foreach ($this->columns as $column) {
+			    $columnName = $column->getName();
 
-                    $afterColumn = $column->getAfter();
-                    $sql = "ALTER TABLE `$tableName` ADD $columnSql"
-                        . ($afterColumn
-                            ? " AFTER `$afterColumn`"
-                            : "")
-                        . ";";
+			    if (!$this->columnExists($tableName, $columnName)) {
+				    $columnSql = $this->generateSingleColumnSql($column);
 
-                    $wpdb->query($sql);
-                }
-            }
+				    $afterColumn = $column->getAfter();
+				    $sql = "ALTER TABLE `$tableName` ADD $columnSql" . ($afterColumn ? " AFTER `$afterColumn`" : "") . ";";
+				    $this->query( $sql, $tableName );
+			    }
+		    }
 
-            $this->runIndexCommands($tableName);
-        }
+		    $this->runIndexCommands($tableName);
+	    }
     }
+
+	/**
+	 * Execute a schema SQL statement and fail fast if the database reports an error.
+	 *
+	 * WordPress database operations normally signal failure by returning false instead
+	 * of throwing an exception. Without checking that return value, failed CREATE or
+	 * ALTER statements would be silently ignored and the current migration could still
+	 * be recorded as successfully applied, leaving the database schema permanently out
+	 * of sync. This helper converts database failures into exceptions so the migration
+	 * is never marked as completed unless every schema operation succeeds.
+	 *
+	 * @param string $sql SQL statement to execute.
+	 * @param string $tableName Database table involved in the operation.
+	 * @return void
+	 * @throws SchemaQueryException When the SQL statement cannot be executed.
+	 */
+	private function query(string $sql, string $tableName): void
+	{
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		if ( false === $wpdb->query( $sql ) ) {
+			throw new SchemaQueryException(
+				sprintf( 'Schema statement failed for table %s: %s', $tableName, $wpdb->last_error )
+			);
+		}
+	}
 
     /**
      * Create a new auto-incrementing unsigned big integer column.

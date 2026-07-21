@@ -22,4 +22,4 @@
 
 ### Removed
 
-- Removed Omega Kernel dependency.
+- None.
